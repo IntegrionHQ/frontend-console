@@ -2,4 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Hemming';
+  src: url('/fonts/Heming.ttf') format('truetype');
+}
 
+.hemming{
+  font-family: "Hemming", sans-serif;
+}
