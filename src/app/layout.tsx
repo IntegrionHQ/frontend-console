@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
+import { UserProvider } from "./store/global/context/userContext";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -28,11 +29,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+   
+
+    
       <body
-        className={`${manrope.className}  antialiased`}
+        className={`${manrope.className} antialiased`}
       >
+           <UserProvider>
         {children}
+        </UserProvider>
       </body>
+        
     </html>
   );
 }

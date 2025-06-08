@@ -35,20 +35,10 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
+      name: "Integrion",
       logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
+      plan: "Pro",
+    }
   ],
   navMain: [
     {
@@ -58,8 +48,8 @@ const data = {
       isActive: true,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Projects",
+          url: "/dashboard/projects",
         },
         {
           title: "Starred",

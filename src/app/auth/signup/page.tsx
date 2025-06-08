@@ -92,13 +92,13 @@ export default function Home() {
       </div>
       <div className="w-1/2 flex flex-col justify-start items-start bg-white rounded-lg h-full px-36 ">
         <div>
-          <h1 className="hemming text-4xl font-medium text-black">Create an account</h1>
-          <p className=" font-medium">Setup your Integrion account for free trial test runs</p>
+          <h1 className="hemming text-3xl font-medium text-black">Create an account</h1>
+          <p className=" font-medium text-sm">Setup your Integrion account for free trial test runs</p>
         </div>
         {/* Email and password login form using formik and yup */}
         <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
           <div className="flex flex-col gap-1 w-full">
-            <label htmlFor="email" className="font-medium text-md">Email</label>
+            <label htmlFor="email" className="font-medium text-sm">Email</label>
             <input
               id="email"
               name="email"
@@ -114,7 +114,7 @@ export default function Home() {
             ) : null}
           </div>
           <div className="flex flex-col gap-1 w-full">
-        <label htmlFor="password" className="font-medium text-md">Password</label>
+        <label htmlFor="password" className="font-medium text-sm">Password</label>
         <div className="relative">
           <input
             id="password"
@@ -145,7 +145,7 @@ export default function Home() {
       </div>
           <button
             type="submit"
-            className=" hemming text-lg font-medium bg-lime-400 text-white rounded px-4 py-3 mt-2 hover:bg-green-900 transition"
+            className=" hemming text-lg font-medium bg-blue-400 text-white rounded px-4 py-3 mt-2 hover:bg-green-900 transition"
           >
             Sign Up
           </button>
@@ -153,27 +153,27 @@ export default function Home() {
 
         <div className="flex justify-center items-center  w-full mt-3 px-20 gap-4">
           <hr className="h-0.5 bg-gray-200 w-full"/>
-            <span className="hemming text-gray-400">OR</span>
+            <span className="hemming text-gray-400">Or continue with</span>
           <hr className="h-0.5 bg-gray-200 w-full"/>
         </div>
 
         <div className="flex flex-col gap-4 w-full justify-center items-center">
-          <button className="w-full hemming text-lg font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGithubLogin}>
+          <button className="w-full hemming text-sm font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGithubLogin}>
              <span className="flex justify-center items-center gap-4">
-              <RiGithubFill size={36}/>
+              <RiGithubFill size={30}/>
               Continue With Github
              </span>
           </button>
-          <button className="w-full hemming text-lg font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGitLabLogin}>
+          <button className="w-full hemming text-sm font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGitLabLogin}>
              <span className="flex justify-center items-center gap-4">
-              <RiGitlabFill size={36}/>
+              <RiGitlabFill size={30}/>
               Continue With Gitlab
              </span>
           </button>
             
         </div>
         <div className="w-full text-center mt-10">
-          <span className="text-lg">Already have an account ? {" "}
+          <span className="text-sm">Already have an account ? {" "}
             <span className="underline font-semibold">
               <Link href="/auth/signin">
               Sign In
