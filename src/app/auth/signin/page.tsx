@@ -63,7 +63,7 @@ const page = () => {
         }
       } 
       else if(provider == "gitlab" && authCode){
-        const response =  await fetch(`${backend_uri}api/v1/registerWithGitLab?authToken=${authCode}`)
+        const response =  await fetch(`${backend_uri}/api/v1/registerWithGitLab?authToken=${authCode}`)
         const data = await response.json()
       }
       else if(provider == "bitbucket" && authCode){
@@ -75,10 +75,10 @@ const page = () => {
   },[provider, authCode, backend_uri, setUser])
 
   const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB
+  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
   const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
   const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB
+  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
 
   const handleGithubLogin = () => {
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
