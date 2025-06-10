@@ -19,6 +19,7 @@ export default function Home() {
   const authCode = params.get("code");
   const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI
   const [showPassword, setShowPassword] = useState(false);
+ console.log(params);
  
   const SignUpSchema = Yup.object().shape({
     email: Yup.string()
@@ -47,27 +48,31 @@ export default function Home() {
 
   useEffect(()=>{
     const makeRequest = async () =>{
+      console.log(params);
+      
       if(provider == "github" && authCode){
-        const response =  await fetch(`${backend_uri}api/v1/registerWithGitHub?authToken=${authCode}`)
+        const response =  await fetch(`${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`)
         const data = await response.json()
+        console.log(data);
+        
       }
       else if(provider == "gitlab" && authCode){
-        const response =  await fetch(`${backend_uri}api/v1/registerWithGitLab?authToken=${authCode}`)
+        const response =  await fetch(`${backend_uri}/api/v1/registerWithGitLab?authToken=${authCode}`)
         const data = await response.json()
       }
       else if(provider == "bitbucket" && authCode){
-        const response =  await fetch(`${backend_uri}api/v1/registerWithBitbucket?authToken=${authCode}`)
+        const response =  await fetch(`${backend_uri}/api/v1/registerWithBitbucket?authToken=${authCode}`)
         const data = await response.json()
       }
     }
     makeRequest()
-  },[])
+  },[params])
 
   const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB
+  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITHUB
   const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
   const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB
+  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITLAB
 
   const handleGithubLogin = () => {
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
