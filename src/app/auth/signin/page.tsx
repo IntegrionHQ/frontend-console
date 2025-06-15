@@ -16,6 +16,11 @@ import {RiGithubFill,RiGitlabFill} from "@remixicon/react"
 import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
 
 
+// console.log("OAuth Configuration:", {
+//   clientId: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+//   redirectUri: process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB,
+//   backendUri: process.env.NEXT_PUBLIC_BACKEND_URI
+// });
 const page = () => {
  const params = useSearchParams(); 
   const provider = params.get("provider");
@@ -75,16 +80,15 @@ const page = () => {
   },[provider, authCode, backend_uri, setUser])
 
   const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
+  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB as string
   const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
   const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
+  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITLAB
 
-  const handleGithubLogin = () => {
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
-    console.log("GitLab Auth URL:", githubAuthUrl);
-    window.location.href = githubAuthUrl;
-  };
+ const handleGithubLogin = () => {
+  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI_GITHUB)}&scope=user%20repo`;
+  window.location.href = githubAuthUrl;
+};
 
   const handleBitBucketLogin = () => {
     const bitBucketAuthUrl = `https://bitbucket.org/site/oauth2/authorize?client_id=${BITBUCKET_CLIENT_KEY}&response_type=code`;
