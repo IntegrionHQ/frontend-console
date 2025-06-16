@@ -69,15 +69,15 @@ export default function Home() {
   },[params])
 
   const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITHUB as string
+  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB
   const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
   const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITLAB
+  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB
 
   const handleGithubLogin = () => {
-  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI_GITHUB)}&scope=user%20repo`;
-  window.location.href = githubAuthUrl;
-};
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
+    window.location.href = githubAuthUrl;
+  };
 
   const handleBitBucketLogin = () => {
     const bitBucketAuthUrl = `https://bitbucket.org/site/oauth2/authorize?client_id=${BITBUCKET_CLIENT_KEY}&response_type=code`;

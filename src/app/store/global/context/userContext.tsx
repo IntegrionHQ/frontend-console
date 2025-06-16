@@ -8,6 +8,7 @@ interface UserContextType {
   primaryEmail?: string;
   gitlabUsername?: string;
   bitbucketUsername?: string;
+  authToken? : string;
 }
 
 interface UserContextValue {

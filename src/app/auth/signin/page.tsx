@@ -1,6 +1,5 @@
 'use client'
 import React from 'react'
-
 import { useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -16,79 +15,20 @@ import {RiGithubFill,RiGitlabFill} from "@remixicon/react"
 import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
 
 
-// console.log("OAuth Configuration:", {
-//   clientId: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
-//   redirectUri: process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB,
-//   backendUri: process.env.NEXT_PUBLIC_BACKEND_URI
-// });
 const page = () => {
- const params = useSearchParams(); 
-  const provider = params.get("provider");
-  const authCode = params.get("code");
-  const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI
   const [showPassword, setShowPassword] = useState(false);
- 
-  const {setUser} = useUser()
-
-  useEffect(()=>{
-    const makeRequest = async () =>{
-    if (provider === "github" && authCode) {
-        try {
-          console.log("Auth Flow - Starting GitHub auth with:", {
-            uri: backend_uri,
-            authCode: authCode
-          });
-
-          
-          const response = await fetch(`${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          console.log("Auth Flow - Backend Response:", data);
-
-          if (data.id) { 
-            const userData = {
-              email: data.email || "",
-              username: data.username || data.email?.split('@')[0] || "",
-              githubUsername: data.githubUsername || "",
-              primaryEmail: data.email || "",
-              gitlabUsername: "",
-              bitbucketUsername: ""
-            };
-            console.log("Auth Flow - Setting user data:", userData);
-            setUser(userData);
-          } else {
-            console.error("Auth Flow - Invalid response format:", data);
-          }
-        } catch (error) {
-          console.error("Auth Flow - Error:", error);
-        }
-      } 
-      else if(provider == "gitlab" && authCode){
-        const response =  await fetch(`${backend_uri}/api/v1/registerWithGitLab?authToken=${authCode}`)
-        const data = await response.json()
-      }
-      else if(provider == "bitbucket" && authCode){
-        const response =  await fetch(`${backend_uri}/api/v1/registerWithBitbucket?authToken=${authCode}`)
-        const data = await response.json()
-      }
-    }
-    makeRequest()
-  },[provider, authCode, backend_uri, setUser])
 
   const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB as string
+  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB
   const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
   const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITLAB
+  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB
 
- const handleGithubLogin = () => {
-  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI_GITHUB)}&scope=user%20repo`;
-  window.location.href = githubAuthUrl;
-};
+  const handleGithubLogin = () => {
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
+    console.log("GitLab Auth URL:", githubAuthUrl);
+    window.location.href = githubAuthUrl;
+  };
 
   const handleBitBucketLogin = () => {
     const bitBucketAuthUrl = `https://bitbucket.org/site/oauth2/authorize?client_id=${BITBUCKET_CLIENT_KEY}&response_type=code`;
@@ -144,4 +84,3 @@ const page = () => {
 }
 
 export default page
-
