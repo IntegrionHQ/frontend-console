@@ -1,143 +1,182 @@
 'use client'
-import React from 'react'
-
-import { useState } from "react";
-import Image from "next/image";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-import { useFormik } from "formik";
-import * as Yup from "yup";
 import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
+import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
 
-
-// Icon Imports
-import {RiGithubFill,RiGitlabFill} from "@remixicon/react"
-import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
-
-
-const page = () => {
- const params = useSearchParams(); 
+const SignInPage = () => {
+  const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
-  const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI
-  const [showPassword, setShowPassword] = useState(false);
- 
-  const {setUser} = useUser()
+  const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI;
+  
+  const { setUser } = useUser();
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(()=>{
-    const makeRequest = async () =>{
-    if (provider === "github" && authCode) {
+  // Handle OAuth callback
+  useEffect(() => {
+    console.log("Auth parameters:", { provider, authCode });
+    
+    if (provider && authCode && !isAuthenticating) {
+      setIsAuthenticating(true);
+      
+      const handleGithubAuth = async () => {
         try {
-          console.log("Auth Flow - Starting GitHub auth with:", {
-            uri: backend_uri,
-            authCode: authCode
-          });
-
+          console.log("Starting GitHub authentication");
           
-          const response = await fetch(`${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`);
+          // Construct and log the full request URL
+          const requestUrl = `${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`;
+          console.log("Request URL:", requestUrl);
+          
+          // Fetch data from the API
+          const response = await fetch(requestUrl);
+          
+          console.log("Response status:", response.status);
           
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error("API Error:", { status: response.status, text: errorText });
+            setAuthError(`Authentication failed: ${response.status}`);
+            return;
           }
           
-          const data = await response.json();
-          console.log("Auth Flow - Backend Response:", data);
-
-          if (data.id) { 
+          // Get response as text first to log it
+          const responseText = await response.text();
+          console.log("Raw response:", responseText);
+          
+          // Then parse it as JSON
+          let data;
+          try {
+            data = JSON.parse(responseText);
+            console.log("Parsed data:", data);
+          } catch (e) {
+            console.error("JSON parse error:", e);
+            setAuthError("Invalid response format");
+            return;
+          }
+          
+          // Extract user data
+          if (data && data.user) {
+            console.log("User data from API:", data.user);
+            
+            // Create user object
             const userData = {
-              email: data.email || "",
-              username: data.username || data.email?.split('@')[0] || "",
-              githubUsername: data.githubUsername || "",
-              primaryEmail: data.email || "",
-              gitlabUsername: "",
-              bitbucketUsername: ""
+              email: data.user.primaryEmail || data.user.githubEmail || "",
+              username: data.user.githubUsername || "",
+              githubUsername: data.user.githubUsername || "",
+              primaryEmail: data.user.primaryEmail || "",
+              gitlabUsername: data.user.gitlabUsername || "",
+              bitbucketUsername: data.user.bitbucketUsername || "",
+              accessToken: data.user.githubAccessToken || ""
             };
-            console.log("Auth Flow - Setting user data:", userData);
+            
+            console.log("Setting user data:", userData);
+            
+            // Update the context
             setUser(userData);
+            
+            // Verify if the context was updated
+            setTimeout(() => {
+              const storedUser = localStorage.getItem('user');
+              console.log("User data in localStorage:", storedUser);
+            }, 500);
           } else {
-            console.error("Auth Flow - Invalid response format:", data);
+            console.error("Invalid user data structure:", data);
+            setAuthError("Invalid user data received");
           }
         } catch (error) {
-          console.error("Auth Flow - Error:", error);
+          console.error("Authentication error:", error);
+          setAuthError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+          setIsAuthenticating(false);
         }
-      } 
-      else if(provider == "gitlab" && authCode){
-        const response =  await fetch(`${backend_uri}/api/v1/registerWithGitLab?authToken=${authCode}`)
-        const data = await response.json()
+      };
+      
+      if (provider === "github") {
+        handleGithubAuth();
       }
-      else if(provider == "bitbucket" && authCode){
-        const response =  await fetch(`${backend_uri}/api/v1/registerWithBitbucket?authToken=${authCode}`)
-        const data = await response.json()
-      }
+      // Add similar handlers for other providers
     }
-    makeRequest()
-  },[provider, authCode, backend_uri, setUser])
+  }, [provider, authCode, backend_uri, setUser, isAuthenticating]);
 
-  const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-  const REDIRECT_URI_GITHUB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
-  const BITBUCKET_CLIENT_KEY = process.env.NEXT_PUBLIC_BITBUCKET_CLIENT_KEY
-  const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID
-  const REDIRECT_URI_GITLAB = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB
-
+  // OAuth login handlers
   const handleGithubLogin = () => {
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITHUB}&scope=user%20repo`;
-    console.log("GitLab Auth URL:", githubAuthUrl);
+    const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB;
+    
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
+    console.log("GitHub Auth URL:", githubAuthUrl);
     window.location.href = githubAuthUrl;
   };
 
-  const handleBitBucketLogin = () => {
-    const bitBucketAuthUrl = `https://bitbucket.org/site/oauth2/authorize?client_id=${BITBUCKET_CLIENT_KEY}&response_type=code`;
-    window.location.href = bitBucketAuthUrl;
-  };
-
   const handleGitLabLogin = () => {
-    const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI_GITLAB}&response_type=code&state=STATE&scope=read_api`;
-    console.log(gitlabAuthUrl )
+    const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID;
+    const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
+    
+    const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&state=STATE&scope=read_api`;
+    console.log("GitLab Auth URL:", gitlabAuthUrl);
     window.location.href = gitlabAuthUrl;
   };
 
   return (
-    <main className="flex min-h-screen  justify-center items-center  max-w-[1920px]  ">
+    <main className="flex min-h-screen justify-center items-center max-w-[1920px]">
       <div className="w-1/2 bg-[url(/background.jpg)] min-h-screen bg-cover bg-no-repeat bg-center">
-
       </div>
-      <div className="w-1/2 flex flex-col justify-start items-start bg-white rounded-lg h-full px-36 ">
+      <div className="w-1/2 flex flex-col justify-start items-start bg-white rounded-lg h-full px-36">
         <div>
           <h1 className="hemming text-3xl font-medium text-black">Sign In</h1>
-          <p className=" font-medium text-sm">Resume testing your backend systems</p>
+          <p className="font-medium text-sm">Resume testing your backend systems</p>
         </div>
-
-        <div className="flex flex-col gap-4 w-full justify-center items-center mt-10">
-          <button className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGithubLogin}>
-             <span className="flex justify-center items-center gap-4">
-              <RiGithubFill size={30}/>
-              Continue With Github
-             </span>
-          </button>
-          <button className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" onClick={handleGitLabLogin}>
-             <span className="flex justify-center items-center gap-4">
-              <RiGitlabFill size={30}/>
-              Continue With Gitlab
-             </span>
-          </button>
+        
+        {authError && (
+          <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
+            {authError}
+          </div>
+        )}
+        
+        {isAuthenticating ? (
+          <div className="w-full mt-10 text-center">
+            <p>Authenticating, please wait...</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-4 w-full justify-center items-center mt-10">
+              <button 
+                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                onClick={handleGithubLogin}
+              >
+                <span className="flex justify-center items-center gap-4">
+                  <RiGithubFill size={30}/>
+                  Continue With Github
+                </span>
+              </button>
+              <button 
+                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                onClick={handleGitLabLogin}
+              >
+                <span className="flex justify-center items-center gap-4">
+                  <RiGitlabFill size={30}/>
+                  Continue With Gitlab
+                </span>
+              </button>
+            </div>
             
-        </div>
-        <div className="w-full text-center mt-10">
-          <span className="text-sm">Don't have an account ? {" "}
-            <span className="underline font-semibold">
-              <Link href="/auth/signup">
-              Sign Up
-              </Link>
- 
-            </span>
-           
-            </span>
-        </div>
+            <div className="w-full text-center mt-10">
+              <span className="text-sm">
+                Don't have an account?{" "}
+                <span className="underline font-semibold">
+                  <Link href="/auth/signup">Sign Up</Link>
+                </span>
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </main>
-  )
-}
+  );
+};
 
-export default page
+export default SignInPage;
 
