@@ -99,12 +99,14 @@ const SignInPage = () => {
       }
       // Add similar handlers for other providers
     }
-  }, [provider, authCode, backend_uri, setUser, isAuthenticating]);
+    // dependency array didn't make sense
+  }, [provider, authCode]);
 
   // OAuth login handlers
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB;
+    // original is undefined
+    const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
     
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
     console.log("GitHub Auth URL:", githubAuthUrl);
