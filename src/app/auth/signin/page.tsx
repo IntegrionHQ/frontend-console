@@ -14,57 +14,72 @@ const SignInPage = () => {
   const { setUser } = useUser();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<number | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
-  // Handle OAuth callback
+  const logObject = (label: string, obj: any) => {
+    const objStr = JSON.stringify(obj, null, 2);
+    console.log(`${label}:`, objStr);
+    setDebugInfo(prev => `${prev}\n${label}: ${objStr}`);
+  };
+
+  
   useEffect(() => {
-    console.log("Auth parameters:", { provider, authCode });
+    logObject("Auth parameters", { provider, authCode });
     
     if (provider && authCode && !isAuthenticating) {
       setIsAuthenticating(true);
+      setDebugInfo("Starting authentication process...");
       
       const handleGithubAuth = async () => {
         try {
-          console.log("Starting GitHub authentication");
+          setDebugInfo(prev => `${prev}\nStarting GitHub authentication`);
           
           // Construct and log the full request URL
           const requestUrl = `${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`;
-          console.log("Request URL:", requestUrl);
+          setDebugInfo(prev => `${prev}\nRequest URL: ${requestUrl}`);
           
           // Fetch data from the API
           const response = await fetch(requestUrl);
           
-          console.log("Response status:", response.status);
+          setDebugInfo(prev => `${prev}\nResponse status: ${response.status}`);
+          setApiStatus(response.status);
           
           if (!response.ok) {
             const errorText = await response.text();
-            console.error("API Error:", { status: response.status, text: errorText });
-            setAuthError(`Authentication failed: ${response.status}`);
+            setDebugInfo(prev => `${prev}\nAPI Error: ${response.status} - ${errorText}`);
+            
+            if (response.status === 500) {
+              setAuthError("Server error (500): The authentication server encountered an error. Please try again later or contact support.");
+            } else {
+              setAuthError(`Authentication failed: ${response.status} - ${errorText}`);
+            }
             return;
           }
           
           // Get response as text first to log it
           const responseText = await response.text();
-          console.log("Raw response:", responseText);
+          setDebugInfo(prev => `${prev}\nRaw response: ${responseText.substring(0, 200)}...`);
           
           // Then parse it as JSON
           let data;
           try {
             data = JSON.parse(responseText);
-            console.log("Parsed data:", data);
+            logObject("Parsed data", data);
           } catch (e) {
-            console.error("JSON parse error:", e);
+            setDebugInfo(prev => `${prev}\nJSON parse error: ${e instanceof Error ? e.message : 'Unknown error'}`);
             setAuthError("Invalid response format");
             return;
           }
           
-          // Extract user data
-          if (data && data.user) {
-            console.log("User data from API:", data.user);
+          
+          if (data && data.user.id) {
+            logObject("User data from API", data.user);
             
-            // Create user object
+            
             const userData = {
               email: data.user.primaryEmail || data.user.githubEmail || "",
-              username: data.user.githubUsername || "",
+              username: data?.user.githubUsername || "",
               githubUsername: data.user.githubUsername || "",
               primaryEmail: data.user.primaryEmail || "",
               gitlabUsername: data.user.gitlabUsername || "",
@@ -72,22 +87,22 @@ const SignInPage = () => {
               accessToken: data.user.githubAccessToken || ""
             };
             
-            console.log("Setting user data:", userData);
+            logObject("Setting user data", userData);
             
-            // Update the context
+           
             setUser(userData);
             
-            // Verify if the context was updated
+           
             setTimeout(() => {
               const storedUser = localStorage.getItem('user');
-              console.log("User data in localStorage:", storedUser);
+              setDebugInfo(prev => `${prev}\nUser data in localStorage: ${storedUser}`);
             }, 500);
           } else {
-            console.error("Invalid user data structure:", data);
+            setDebugInfo(prev => `${prev}\nInvalid user data structure`);
             setAuthError("Invalid user data received");
           }
         } catch (error) {
-          console.error("Authentication error:", error);
+          setDebugInfo(prev => `${prev}\nAuthentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           setAuthError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
           setIsAuthenticating(false);
@@ -97,17 +112,17 @@ const SignInPage = () => {
       if (provider === "github") {
         handleGithubAuth();
       }
-      // Add similar handlers for other providers
+    
     }
-  }, [provider, authCode, backend_uri, setUser, isAuthenticating]);
+  }, [ provider,authCode]);
 
-  // OAuth login handlers
+ 
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITHUB;
+    const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
     
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
-    console.log("GitHub Auth URL:", githubAuthUrl);
+    setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
     window.location.href = githubAuthUrl;
   };
 
@@ -116,8 +131,30 @@ const SignInPage = () => {
     const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
     
     const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&state=STATE&scope=read_api`;
-    console.log("GitLab Auth URL:", gitlabAuthUrl);
+    setDebugInfo(`GitLab Auth URL: ${gitlabAuthUrl}`);
     window.location.href = gitlabAuthUrl;
+  };
+
+ 
+  const renderServerStatus = () => {
+    if (apiStatus === 500) {
+      return (
+        <div className="w-full mt-2 text-sm text-gray-600">
+          <p>The authentication server is currently experiencing issues. This could be due to:</p>
+          <ul className="list-disc pl-5 mt-2">
+            <li>Temporary server outage</li>
+            <li>Maintenance in progress</li>
+            <li>Invalid authentication token</li>
+          </ul>
+          <p className="mt-2">You can try:</p>
+          <ul className="list-disc pl-5 mt-2">
+            <li>Logging in again in a few minutes</li>
+            <li>Contacting support if the issue persists</li>
+          </ul>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -133,6 +170,7 @@ const SignInPage = () => {
         {authError && (
           <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
             {authError}
+            {renderServerStatus()}
           </div>
         )}
         
@@ -172,6 +210,14 @@ const SignInPage = () => {
               </span>
             </div>
           </>
+        )}
+        
+        {/* Debug section - visible only during development */}
+        {process.env.NODE_ENV === 'development' && debugInfo && (
+          <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
+            <h4 className="font-bold mb-2">Debug Information:</h4>
+            <pre>{debugInfo}</pre>
+          </div>
         )}
       </div>
     </main>

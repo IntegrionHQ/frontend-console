@@ -31,6 +31,11 @@ const defaultUser: UserContextType = {
 export const UserContext = createContext<UserContextValue | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+  // Helper function to properly log objects
+  const logObject = (label: string, obj: any) => {
+    console.log(`${label}:`, JSON.stringify(obj, null, 2));
+  };
+
   // Initialize with data from localStorage if available
   const [user, setUserState] = useState<UserContextType>(() => {
     if (typeof window !== 'undefined') {
@@ -38,7 +43,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);
-          console.log("Loading user from localStorage:", parsedUser);
+          logObject("Loading user from localStorage", parsedUser);
           return parsedUser;
         }
       } catch (error) {
@@ -53,7 +58,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('user', JSON.stringify(user));
-        console.log("User saved to localStorage:", user);
+        logObject("User saved to localStorage", user);
       } catch (error) {
         console.error("Error saving user to localStorage:", error);
       }
@@ -62,7 +67,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Function to update user
   const setUser = (newUser: UserContextType) => {
-    console.log("Setting user:", newUser);
+    logObject("Setting user", newUser);
     
     // Validate the user data
     if (!newUser.email && !newUser.username && !newUser.githubUsername) {
