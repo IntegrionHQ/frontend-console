@@ -9,6 +9,8 @@ interface UserContextType {
   gitlabUsername?: string;
   accessToken?: string;
   bitbucketUsername?: string;
+  authCode:string
+  provider:string
 }
 
 interface UserContextValue {
@@ -25,7 +27,9 @@ const defaultUser: UserContextType = {
   primaryEmail: "",
   gitlabUsername: "",
   accessToken: "",
-  bitbucketUsername: ""
+  bitbucketUsername: "",
+  authCode:"",
+  provider:""
 };
 
 export const UserContext = createContext<UserContextValue | undefined>(undefined);

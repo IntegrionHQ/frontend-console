@@ -19,6 +19,7 @@ const SignInPage = () => {
   const [debugInfo, setDebugInfo] = useState<string>("");
 
   const router = useRouter();
+
   const logObject = (label: string, obj: any) => {
     const objStr = JSON.stringify(obj, null, 2);
     console.log(`${label}:`, objStr);
@@ -92,7 +93,7 @@ const SignInPage = () => {
             logObject("Setting user data", userData);
             
            
-            setUser(userData);
+            setUser({...userData,authCode,provider});
             
            
             setTimeout(() => {
@@ -103,7 +104,7 @@ const SignInPage = () => {
                 logObject("Parsed user from localStorage", parsedUser);
                 if(parsedUser )
                 {
-                  router.push('/dashboard/projects')
+                  router.push(`/dashboard/projects?provider=${provider}&authcode=${authCode}`)
                 }
               } else {
                 setDebugInfo(prev => `${prev}\nNo user data found in localStorage`);
@@ -129,7 +130,7 @@ const SignInPage = () => {
       }
     
     }
-  }, [ provider,authCode]);
+  }, [ provider,authCode,router]);
 
  
   const handleGithubLogin = () => {

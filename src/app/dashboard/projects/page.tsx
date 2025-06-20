@@ -1,19 +1,34 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Plus } from "lucide-react"
 import Link from 'next/link'
 import Image from 'next/image'
 import ProjectSelectionModals from '@/app/components/core/modals/projectSelectionModals'
+import { useUser } from '@/app/store/global/context/userContext'
 
+// import { useRouter } from 'next/router'
 
 const page = () => {
 
   const [projectModalOpen, setProjectModalOpen] = useState<boolean>(false)
+  const [projects, setProjects] = useState<any[]>([]);
+  const {user} = useUser();
 
-  const projects= [
-
-  ]
- 
+  const backend = process.env.NEXT_PUBLIC_BACKEND_URI
+   useEffect(() => {
+      const fetchProjects = async () => {
+        try {
+          const response = await fetch(`${backend}/api/v1/getUserGitHubRepositories?provider=${user.provider}&authToken=${user.authCode}&access_token=${user.accessToken}&username=${user.githubUsername}`);
+          const data = await response.json();
+          console.log(data)
+          setProjects(data);
+        } catch (error) {
+          console.error("Failed to fetch projects:", error);
+          setProjects([]);
+        }
+      };
+      fetchProjects();
+   }, [])
   return (
     <>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-10">
@@ -41,7 +56,7 @@ const page = () => {
         
           </div>
         {
-          projects.length === 0 ? (
+          !projects? (
             <div className='flex flex-col justify-center items-center h-[60vh]'>
                   <Image
                   src="/empty-folder.png"
@@ -54,6 +69,15 @@ const page = () => {
               </div>
           ) : (
             <div>
+              {projects.map((project)=>
+              (
+                <>
+                <div>
+                  {project.id}
+                </div>
+                </>
+              ))}
+              
               </div>
           )
         }
