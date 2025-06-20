@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
 import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
+import { Loader } from "lucide-react";
 
 const SignInPage = () => {
   const params = useSearchParams();
@@ -174,44 +175,51 @@ const SignInPage = () => {
   };
 
   return (
-    <main className="flex min-h-screen justify-center items-center max-w-[1920px]">
-      <div className="w-1/2 bg-[url(/background.jpg)] min-h-screen bg-cover bg-no-repeat bg-center">
+    <main className="bg-black flex min-h-screen justify-center items-center max-w-[1920px] ">
+      <div className="w-1/2 bg-[url(/bg.jpg)] min-h-screen bg-cover bg-no-repeat bg-center">
       </div>
-      <div className="w-1/2 flex flex-col justify-start items-start bg-white rounded-lg h-full px-36">
+      <div className="w-1/2  flex flex-col justify-start items-start   rounded-lg h-full px-36">
         <div>
-          <h1 className="hemming text-3xl font-medium text-black">Sign In</h1>
-          <p className="font-medium text-sm">Resume testing your backend systems</p>
+          <h1 className="hemming text-3xl font-medium text-white">Sign In</h1>
+          <p className="font-medium text-sm text-white sub">Resume testing your backend systems</p>
         </div>
         
-        {authError && (
+        {/* {authError && (
           <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
             {authError}
             {renderServerStatus()}
           </div>
-        )}
+        )} */}
         
-        {isAuthenticating ? (
+        {/* {isAuthenticating ? (
           <div className="w-full mt-10 text-center">
             <p>Authenticating, please wait...</p>
           </div>
         ) : (
-          <>
+          <> */}
             <div className="flex flex-col gap-4 w-full justify-center items-center mt-10">
               <button 
-                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                className="w-full hemming text-md font-medium  bg-main text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
                 onClick={handleGithubLogin}
               >
                 <span className="flex justify-center items-center gap-4">
-                  <RiGithubFill size={30}/>
+                  {isAuthenticating && provider == "github" ? (
+                    <Loader className="animate-spin" size={30} />
+                  ):(
+                    <>
+                     <RiGithubFill size={30}/>
                   Continue With Github
+                    </>
+                  )}
+                 
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                className="w-full hemming text-md font-medium border border-white text-white rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
                 onClick={handleGitLabLogin}
               >
                 <span className="flex justify-center items-center gap-4">
-                  <RiGitlabFill size={30}/>
+                  <RiGitlabFill size={20}/>
                   Continue With Gitlab
                 </span>
               </button>
@@ -225,16 +233,16 @@ const SignInPage = () => {
                 </span>
               </span>
             </div>
-          </>
-        )}
+          {/* </>
+        )} */}
         
         {/* Debug section - visible only during development */}
-        {process.env.NODE_ENV === 'development' && debugInfo && (
+        {/* {process.env.NODE_ENV === 'development' && debugInfo && (
           <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
             <h4 className="font-bold mb-2">Debug Information:</h4>
             <pre>{debugInfo}</pre>
           </div>
-        )}
+        )} */}
       </div>
     </main>
   );

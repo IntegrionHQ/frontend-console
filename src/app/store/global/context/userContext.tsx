@@ -15,6 +15,7 @@ interface UserContextType {
 
 interface UserContextValue {
   user: UserContextType;
+
   setUser: (user: UserContextType) => void;
   clearUser: () => void;
 }

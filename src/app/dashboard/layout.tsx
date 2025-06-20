@@ -19,7 +19,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Integrion",
-  description: "The next-gen AI plaform for QA and backend testing",
+  description: "The next-gen AI platform for QA and backend testing",
 };
 
 export default function RootLayout({

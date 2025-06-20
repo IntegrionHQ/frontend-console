@@ -4,16 +4,20 @@
 @tailwind utilities;
 
 @font-face {
-  font-family: 'Hemming';
-  src: url('/fonts/Heming.ttf') format('truetype');
+  font-family: 'graphik';
+  src: url('/fonts/Graphik-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'graphik-normal';
+  src: url('/fonts/Graphik-Regular.ttf') format('truetype');
 }
 
-.hemming{
-  font-family: "Hemming", sans-serif;
+.sub{
+  font-family: "graphik-normal", sans-serif;
 }
 
 body{
-  font-family: "Manrope", sans-serif;
+  font-family: "graphik", sans-serif;
   font-optical-sizing: auto;
 }
 
