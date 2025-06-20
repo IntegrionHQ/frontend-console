@@ -28,6 +28,8 @@ const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const router = useRouter();
+
+  
   const SignUpSchema = Yup.object().shape({
       email: Yup.string()
         .email("Invalid email format. Kindly try again")
@@ -47,8 +49,16 @@ const SignUpPage = () => {
     },
     validationSchema: SignUpSchema,
     onSubmit: (values) => {
-      console.log(values)
-      
+      fetch(`${backend_uri}/api/v1/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password
+        })
+      });
     }
   });
 
