@@ -362,14 +362,7 @@ const SignUpPage = () => {
                   <Link href="/auth/signin">Sign In</Link>
                 </span>
               </span>
-              <span className="text-sm manrope font-normal">
-                  <Link href="/auth/signup">
-                Forgotten your password?{" "}
-                <span className="underline font-semibold">
-               
-                </span>
-                 </Link>
-              </span>
+             
             </div>
           {/* </>
         )} */}
