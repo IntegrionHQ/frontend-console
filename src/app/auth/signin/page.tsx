@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
 import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
+import { useRouter } from "next/navigation";
 
 const SignInPage = () => {
   const params = useSearchParams();
@@ -16,6 +17,8 @@ const SignInPage = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
+
+  const router = useRouter();
 
   const logObject = (label: string, obj: any) => {
     const objStr = JSON.stringify(obj, null, 2);
@@ -90,13 +93,26 @@ const SignInPage = () => {
             logObject("Setting user data", userData);
             
            
-            setUser(userData);
+            setUser({...userData,authCode,provider});
             
            
             setTimeout(() => {
               const storedUser = localStorage.getItem('user');
               setDebugInfo(prev => `${prev}\nUser data in localStorage: ${storedUser}`);
+              if (storedUser) {
+                const parsedUser = JSON.parse(storedUser);
+                logObject("Parsed user from localStorage", parsedUser);
+                if(parsedUser )
+                {
+                  router.push(`/dashboard/projects?provider=${provider}&authcode=${authCode}`)
+                }
+              } else {
+                setDebugInfo(prev => `${prev}\nNo user data found in localStorage`);
+              }
+              
             }, 500);
+
+
           } else {
             setDebugInfo(prev => `${prev}\nInvalid user data structure`);
             setAuthError("Invalid user data received");
@@ -114,7 +130,7 @@ const SignInPage = () => {
       }
     
     }
-  }, [ provider,authCode]);
+  }, [ provider,authCode,router]);
 
  
   const handleGithubLogin = () => {
