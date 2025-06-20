@@ -33,7 +33,7 @@ export default function RootLayout({
 
     
       <body
-        className={`${manrope.className} antialiased`}
+        // className={`${manrope.className} antialiased`}
       >
            <UserProvider>
         {children}

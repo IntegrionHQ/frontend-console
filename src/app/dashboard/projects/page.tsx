@@ -73,7 +73,7 @@ const page = () => {
               (
                 <>
                 <div>
-                  {project.id}
+                  {project.name}
                 </div>
                 </>
               ))}

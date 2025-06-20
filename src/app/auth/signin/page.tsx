@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
 import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
-
+import { Loader } from "lucide-react";
+import { Formik, useFormik } from "formik";
+import * as Yup from "yup";
+import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
 const SignInPage = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
@@ -17,9 +20,34 @@ const SignInPage = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const router = useRouter();
+  const SignUpSchema = Yup.object().shape({
+      email: Yup.string()
+        .email("Invalid email format. Kindly try again")
+        .required("E-mail is required"),
+      password: Yup.string()
+        .min(8, "Your password must be at least 8 characters long")
+        .matches(/[a-z]/, "Password must contain at least one lowercase letter")
+        .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+        .matches(/\d/, "Password must contain at least one number")
+        .matches(/[@$!%*?&#^()_\-+=]/, "Password must contain at least one special character")
+        .required("Password is required"),
+    });
+  const formik = useFormik({
+    initialValues: {
+      email: "",
+      password: ""
+    },
+    validationSchema: SignUpSchema,
+    onSubmit: (values) => {
+      console.log(values)
+      
+    }
+  });
 
+  
   const logObject = (label: string, obj: any) => {
     const objStr = JSON.stringify(obj, null, 2);
     console.log(`${label}:`, objStr);
@@ -174,67 +202,166 @@ const SignInPage = () => {
   };
 
   return (
-    <main className="flex min-h-screen justify-center items-center max-w-[1920px]">
-      <div className="w-1/2 bg-[url(/background.jpg)] min-h-screen bg-cover bg-no-repeat bg-center">
-      </div>
-      <div className="w-1/2 flex flex-col justify-start items-start bg-white rounded-lg h-full px-36">
+    <main className="bg-black flex min-h-screen justify-center items-center max-w-[1920px] ">
+   
+      <div className="w-full  flex flex-col justify-start items-start   rounded-lg h-full p-10 max-w-[600px]">
         <div>
-          <h1 className="hemming text-3xl font-medium text-black">Sign In</h1>
-          <p className="font-medium text-sm">Resume testing your backend systems</p>
+          <h1 className="hemming text-2xl font-normal text-white jb  tracking-wider">Sign In to Integrion</h1>
         </div>
         
-        {authError && (
+        {/* {authError && (
           <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
             {authError}
             {renderServerStatus()}
           </div>
-        )}
+        )} */}
         
-        {isAuthenticating ? (
+        {/* {isAuthenticating ? (
           <div className="w-full mt-10 text-center">
             <p>Authenticating, please wait...</p>
           </div>
         ) : (
-          <>
-            <div className="flex flex-col gap-4 w-full justify-center items-center mt-10">
+          <> */}
+            <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
               <button 
-                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
                 onClick={handleGithubLogin}
               >
-                <span className="flex justify-center items-center gap-4">
-                  <RiGithubFill size={30}/>
-                  Continue With Github
+                <span className="flex justify-center items-center gap-4 font-normal manrope">
+                  {isAuthenticating && provider == "github" ? (
+                    <Loader className="animate-spin" size={15} />
+                  ):(
+                    <>
+                     <RiGithubFill size={20}/>
+                  Github
+                    </>
+                  )}
+                 
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-black text-black rounded px-4 py-2 mt-2 hover:bg-black hover:text-white transition" 
+                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
                 onClick={handleGitLabLogin}
               >
-                <span className="flex justify-center items-center gap-4">
-                  <RiGitlabFill size={30}/>
-                  Continue With Gitlab
+                <span className="flex justify-center items-center gap-4 font-normal manrope">
+                 {isAuthenticating && provider == "gitlab" ? (
+                    <Loader className="animate-spin" size={15} />
+                  ):(
+                    <>
+                     <RiGitlabFill size={20}/>
+                  Gitlab
+                    </>
+                  )}
+                </span>
+              </button>
+              <button 
+                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
+                onClick={handleGitLabLogin}
+              >
+                <span className="flex justify-center items-center gap-4 font-normal manrope">
+                {isAuthenticating && provider == "bitbucket" ? (
+                    <Loader className="animate-spin" size={15} />
+                  ):(
+                    <>
+                     <RiGitlabFill size={20}/>
+                  Bitbucket
+                    </>
+                  )}
                 </span>
               </button>
             </div>
-            
-            <div className="w-full text-center mt-10">
-              <span className="text-sm">
+<div className="flex justify-center items-center w-full mt-5">
+           <span className="flex justify-center items-center text-white manrope">
+            <hr className="w-1/4 h-1/4 bg-white"/>
+            or
+            <hr className="w-1/4 h-1/4 bg-white"/>
+           </span>
+            </div>
+
+            <div className="w-full">
+              <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
+          <div className="flex flex-col gap-1 w-full">
+            <label htmlFor="email" className="font-light text-sm text-white manrope">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-white text-sm font-light manrope outline-none"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.email}
+              autoComplete="email"
+              placeholder="your@email.com"
+            />
+            {formik.touched.email && formik.errors.email ? (
+              <div className="text-red-200 text-sm manrope font-light">{formik.errors.email}</div>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-1 w-full">
+        <label htmlFor="password" className="font-light text-xs text-white manrope">Password</label>
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-white font-light manrope outline-none"
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            value={formik.values.password}
+            autoComplete="new-password"
+            placeholder="********"
+          />
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2"
+            onClick={() => setShowPassword((prev:boolean) => !prev)}
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <EyeSlashIcon fontSize={12}/>
+            ) : (
+              <EyeIcon/>
+            )}
+          </button>
+        </div>
+        {formik.touched.password && formik.errors.password ? (
+          <div className="text-red-200 text-xs manrope font-light">{formik.errors.password}</div>
+        ) : null}
+      </div>
+          <button
+            type="submit"
+            className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition"
+          >
+            Sign In
+          </button>
+        </form>
+            </div>
+            <div className="w-full flex justify-between text-center  text-white mt-10">
+              <span className="text-sm manrope">
                 Don't have an account?{" "}
                 <span className="underline font-semibold">
                   <Link href="/auth/signup">Sign Up</Link>
                 </span>
               </span>
+              <span className="text-sm manrope font-normal">
+                  <Link href="/auth/signup">
+                Forgotten your password?{" "}
+                <span className="underline font-semibold">
+               
+                </span>
+                 </Link>
+              </span>
             </div>
-          </>
-        )}
+          {/* </>
+        )} */}
         
         {/* Debug section - visible only during development */}
-        {process.env.NODE_ENV === 'development' && debugInfo && (
+        {/* {process.env.NODE_ENV === 'development' && debugInfo && (
           <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
             <h4 className="font-bold mb-2">Debug Information:</h4>
             <pre>{debugInfo}</pre>
           </div>
-        )}
+        )} */}
       </div>
     </main>
   );
