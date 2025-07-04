@@ -42,8 +42,16 @@ const SignInPage = () => {
     },
     validationSchema: SignUpSchema,
     onSubmit: (values) => {
-      console.log(values)
-      
+      fetch(`${backend_uri}/api/v1/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password
+        })
+      });
     }
   });
 
