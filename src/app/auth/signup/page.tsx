@@ -26,8 +26,11 @@ const SignUpPage = () => {
   const [apiStatus, setApiStatus] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading,setLoading] = useState<boolean>(false);
 
   const router = useRouter();
+
+  
   const SignUpSchema = Yup.object().shape({
       email: Yup.string()
         .email("Invalid email format. Kindly try again")
@@ -46,9 +49,37 @@ const SignUpPage = () => {
       password: ""
     },
     validationSchema: SignUpSchema,
-    onSubmit: (values) => {
-      console.log(values)
-      
+    onSubmit: async (values) => {
+      setLoading(true); 
+      try {
+        const response = await fetch(`${backend_uri}/api/v1/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: values.email,
+            password: values.password
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error creating account:", errorText);
+          // Handle error (e.g., show error message to the user)
+          return;
+        }
+
+        const data = await response.json();
+        console.log("Account created successfully:", data);
+        // Handle success (e.g., redirect to another page or show success message)
+      } catch (error) {
+        console.error("Error during account creation:", error);
+        // Handle error (e.g., show error message to the user)
+      } finally {
+        setLoading(false);
+        router.push("/auth/signup/otp") // Set loading state to false after the request completes
+      }
     }
   });
 
@@ -184,27 +215,7 @@ const SignUpPage = () => {
     window.location.href = gitlabAuthUrl;
   };
 
- 
-  const renderServerStatus = () => {
-    if (apiStatus === 500) {
-      return (
-        <div className="w-full mt-2 text-sm text-gray-600">
-          <p>The authentication server is currently experiencing issues. This could be due to:</p>
-          <ul className="list-disc pl-5 mt-2">
-            <li>Temporary server outage</li>
-            <li>Maintenance in progress</li>
-            <li>Invalid authentication token</li>
-          </ul>
-          <p className="mt-2">You can try:</p>
-          <ul className="list-disc pl-5 mt-2">
-            <li>Logging in again in a few minutes</li>
-            <li>Contacting support if the issue persists</li>
-          </ul>
-        </div>
-      );
-    }
-    return null;
-  };
+   
 
   return (
     <main className="bg-black flex min-h-screen justify-center items-center max-w-[1920px] ">
@@ -349,9 +360,13 @@ const SignUpPage = () => {
         </div>
           <button
             type="submit"
-            className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition"
+            className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition flex justify-center items-center"
           >
-            Create Account
+            {
+              loading? (
+                  <Loader className="size-4 animate-spin"/>
+              ): "Create Account"
+            }
           </button>
         </form>
             </div>
@@ -362,14 +377,7 @@ const SignUpPage = () => {
                   <Link href="/auth/signin">Sign In</Link>
                 </span>
               </span>
-              <span className="text-sm manrope font-normal">
-                  <Link href="/auth/signup">
-                Forgotten your password?{" "}
-                <span className="underline font-semibold">
-               
-                </span>
-                 </Link>
-              </span>
+             
             </div>
           {/* </>
         )} */}
