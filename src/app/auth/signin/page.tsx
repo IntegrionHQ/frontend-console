@@ -42,16 +42,24 @@ const SignInPage = () => {
     },
     validationSchema: SignUpSchema,
     onSubmit: (values) => {
-      fetch(`${backend_uri}/api/v1/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password
-        })
-      });
+      const login = async () => {
+        const response = await fetch(`${backend_uri}/api/v1/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: values.email,
+            password: values.password
+          })
+        });
+        if (!response.ok) {
+         const errorText= await response.text;
+         console.error(errorText)
+        }
+        router.push("/auth/signup/otp")
+      };
+      login();
     }
   });
 
