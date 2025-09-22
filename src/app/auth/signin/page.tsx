@@ -125,6 +125,7 @@ const SignInPage = () => {
             
             
             const userData = {
+              id: data.user.id,
               email: data.user.primaryEmail || data.user.githubEmail || "",
               username: data?.user.githubUsername || "",
               githubUsername: data.user.githubUsername || "",
@@ -138,6 +139,23 @@ const SignInPage = () => {
             
            
             setUser({...userData,authCode,provider});
+
+            // Pre-warm GitHub repositories cache for modal (sessionStorage + 5min TTL)
+            try {
+              const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
+              const storageKey = `gh:repos:${cacheKey}`
+              const reposUrl = `${backend_uri}/api/v1/getUserGitHubRepositories?provider=${provider}&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
+              fetch(reposUrl)
+                .then(async (res) => {
+                  if (!res.ok) return
+                  const list = await res.json()
+                  const arr = Array.isArray(list) ? list : []
+                  try {
+                    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: arr }))
+                  } catch {}
+                })
+                .catch(() => {})
+            } catch {}
             
            
             setTimeout(() => {
@@ -218,11 +236,11 @@ const SignInPage = () => {
   };
 
   return (
-    <main className="bg-black flex min-h-screen justify-center items-center max-w-[1920px] ">
+    <main className="bg-white flex min-h-screen justify-center items-center max-w-[1920px] ">
    
       <div className="w-full  flex flex-col justify-start items-start   rounded-lg h-full p-10 max-w-[600px]">
         <div>
-          <h1 className="hemming text-2xl font-normal text-white jb  tracking-wider">Sign In to Integrion</h1>
+          <h1 className="hemming text-2xl font-normal text-black jb  tracking-wider">Sign In to Integrion</h1>
         </div>
         
         {/* {authError && (
@@ -240,7 +258,7 @@ const SignInPage = () => {
           <> */}
             <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
               <button 
-                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
+                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
                 onClick={handleGithubLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -256,7 +274,7 @@ const SignInPage = () => {
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
+                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
                 onClick={handleGitLabLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -271,7 +289,7 @@ const SignInPage = () => {
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
+                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
                 onClick={handleGitLabLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -287,22 +305,22 @@ const SignInPage = () => {
               </button>
             </div>
 <div className="flex justify-center items-center w-full mt-5">
-           <span className="flex justify-center items-center text-white manrope">
-            <hr className="w-1/4 h-1/4 bg-white"/>
+           <span className="flex justify-center items-center text-black manrope">
+            <hr className="w-1/4 h-1/4 bg-black"/>
             or
-            <hr className="w-1/4 h-1/4 bg-white"/>
+            <hr className="w-1/4 h-1/4 bg-black"/>
            </span>
             </div>
 
             <div className="w-full">
               <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
           <div className="flex flex-col gap-1 w-full">
-            <label htmlFor="email" className="font-light text-sm text-white manrope">Email</label>
+            <label htmlFor="email" className="font-light text-sm text-black manrope">Email</label>
             <input
               id="email"
               name="email"
               type="email"
-              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-white text-sm font-light manrope outline-none"
+              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-black text-sm font-light manrope outline-none"
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               value={formik.values.email}
@@ -314,13 +332,13 @@ const SignInPage = () => {
             ) : null}
           </div>
           <div className="flex flex-col gap-1 w-full">
-        <label htmlFor="password" className="font-light text-xs text-white manrope">Password</label>
+        <label htmlFor="password" className="font-light text-xs text-black manrope">Password</label>
         <div className="relative">
           <input
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-white font-light manrope outline-none"
+            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-black font-light manrope outline-none"
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
             value={formik.values.password}
@@ -346,13 +364,13 @@ const SignInPage = () => {
       </div>
           <button
             type="submit"
-            className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition"
+            className=" manrope text-sm font-semibold bg-black text-white  px-4 py-3 mt-2  transition"
           >
             Sign In
           </button>
         </form>
             </div>
-            <div className="w-full flex justify-between text-center  text-white mt-10">
+            <div className="w-full flex justify-between text-center  text-black mt-10">
               <span className="text-sm manrope">
                 Don't have an account?{" "}
                 <span className="underline font-semibold">

@@ -1,71 +1,56 @@
 'use client'
 import React from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from '@/components/ui/separator';
-import { AppSidebar } from "./app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+import { AppSidebar } from './app-sidebar'
+import SystemOperational from '../SystemOperational'
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  
-  
-  const generateBreadcrumbs = () => {
-    
-    const pathSegments = pathname.split('/').filter(segment => segment);
-    
-   
-    return pathSegments.map((segment, index) => {
-      const path = `/${pathSegments.slice(0, index + 1).join('/')}`;
-      
-      
-      const label = segment.charAt(0).toUpperCase() + 
-                    segment.slice(1).replace(/-/g, ' ');
-      
-   
-      const isLast = index === pathSegments.length - 1;
-      
-      return (
-        <React.Fragment key={path}>
-          <BreadcrumbItem className="hidden md:block">
-            {isLast ? (
-              <BreadcrumbPage>{label}</BreadcrumbPage>
-            ) : (
-              <BreadcrumbLink href={path}>{label}</BreadcrumbLink>
-            )}
-          </BreadcrumbItem>
-          {!isLast && (
-            <BreadcrumbSeparator className="hidden md:block" />
-          )}
-        </React.Fragment>
-      );
-    });
-  };
+  const pathname = usePathname()
+
+  const crumbs = React.useMemo(() => {
+    let parts = pathname.split('/').filter(Boolean)
+    // Avoid duplicating the root 'Dashboard' crumb
+    if (parts[0] === 'dashboard') {
+      parts = parts.slice(1)
+    }
+    const acc: { href: string; label: string }[] = []
+    parts.forEach((seg, i) => {
+      const href = '/dashboard' + (i >= 0 ? '/' + parts.slice(0, i + 1).join('/') : '')
+      const label = seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')
+      acc.push({ href, label })
+    })
+    return acc
+  }, [pathname])
 
   return (
-    <SidebarProvider className='dark'>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b border-b-gray-200">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                {generateBreadcrumbs()}
-              </BreadcrumbList>
-            </Breadcrumb>
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="flex">
+        <AppSidebar />
+        <main className="flex-1 min-w-0">
+          <header className="sticky top-0 z-10 flex justify-between h-14 items-center border-b bg-white/80 backdrop-blur px-4">
+            <nav className="text-sm text-gray-600 flex items-center gap-2">
+              <Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link>
+              {crumbs.map((c, i) => (
+                <React.Fragment key={c.href}>
+                  <span className="text-gray-300">/</span>
+                  {i === crumbs.length - 1 ? (
+                    <span className="text-gray-900 font-medium">{c.label}</span>
+                  ) : (
+                    <Link href={c.href} className="hover:text-gray-900">{c.label}</Link>
+                  )}
+                </React.Fragment>
+              ))}
+            </nav>
+            <div className='flex justify-center items-center'>
+              <SystemOperational/>
+            </div>
+          </header>
+          <div className="p-4">
+            {children}
           </div>
-        </header>
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
-  );
+        </main>
+      </div>
+    </div>
+  )
 }
