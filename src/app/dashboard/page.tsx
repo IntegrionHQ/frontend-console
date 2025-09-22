@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Plus } from 'lucide-react'
+import { GitBranch, Plus } from 'lucide-react'
 import { useUser } from '@/app/store/global/context/userContext'
 import ProjectSelectionModals from '@/app/components/core/modals/projectSelectionModals'
 import {Driver} from 'iconsax-react'
@@ -19,12 +19,9 @@ const DashboardPage = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   const fetchProjects = async () => {
-    if (!user?.id || !backend) {
-      setProjects([])
-      return
-    }
+    if (!user?.id || !backend) return
     try {
-      const res = await fetch(`${backend}/users/${user.id}/projects`)
+      const res = await fetch(`${backend}/api/v1/users/${user.id}/projects`)
       if (!res.ok) {
         setProjects([])
         return
@@ -80,23 +77,6 @@ const DashboardPage = () => {
             
             console.log('[Dashboard GitHub Auth] Setting user:', userData)
             setUser({...userData, authCode, provider: 'github'})
-            
-            // Pre-warm GitHub repositories cache
-            try {
-              const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
-              const storageKey = `gh:repos:${cacheKey}`
-              const reposUrl = `${backend}/api/v1/getUserGitHubRepositories?provider=github&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
-              fetch(reposUrl)
-                .then(async (res) => {
-                  if (!res.ok) return
-                  const list = await res.json()
-                  const arr = Array.isArray(list) ? list : []
-                  try {
-                    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: arr }))
-                  } catch {}
-                })
-                .catch(() => {})
-            } catch {}
             
             // Clean up URL by removing OAuth params
             router.replace('/dashboard')
@@ -154,7 +134,7 @@ const DashboardPage = () => {
       ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
           {projects.map((project) => (
-            <div key={project.id} className='border p-4 rounded'>
+            <div key={project.id} className='bg-white border p-4 rounded'>
               <div className='font-medium'>{project.projectName || project.name}</div>
               {project.projectDescription && (
                 <div className='text-sm text-gray-600 mt-1'>{project.projectDescription}</div>
@@ -163,7 +143,9 @@ const DashboardPage = () => {
                 <a className='text-sm text-black underline mt-2 inline-block' href={project.projectUrl} target='_blank' rel='noreferrer'>View repository</a>
               )}
               {project.projectBranch && (
-                <div className='text-xs text-gray-500 mt-2'>Branch: {project.projectBranch}</div>
+                <div className='text-xs text-gray-500 mt-2 flex justify-end items-end'>
+                  <GitBranch className='inline mr-1 mb-0.5 size-4' />
+                   {project.projectBranch}</div>
               )}
             </div>
           ))}

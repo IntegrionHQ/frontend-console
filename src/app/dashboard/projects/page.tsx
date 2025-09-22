@@ -22,7 +22,7 @@ const page = () => {
           return
         }
         try {
-          const response = await fetch(`${backend}/users/${user.id}/projects`)
+          const response = await fetch(`${backend}/api/v1/users/${user.id}/projects`)
           if (!response.ok) {
             console.error("Failed to fetch user projects:", response.status)
             setProjects([])
@@ -38,15 +38,15 @@ const page = () => {
       fetchUserProjects()
    }, [user?.id, backend])
 
-   const refresh = () => {
+  const refresh = () => {
     // Re-run the effect by updating a trivial state or directly call the fetch
     if (!user?.id || !backend) return
-    fetch(`${backend}/users/${user.id}/projects`).then(async (res) => {
+    fetch(`${backend}/api/v1/users/${user.id}/projects`).then(async (res) => {
       if (!res.ok) return setProjects([])
       const data = await res.json()
       setProjects(Array.isArray(data) ? data : [])
     }).catch(() => setProjects([]))
-   }
+  }
   return (
     <>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-10">

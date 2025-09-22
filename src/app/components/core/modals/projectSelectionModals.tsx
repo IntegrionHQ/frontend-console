@@ -27,17 +27,14 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const [submitting, setSubmitting] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<string>("")
   const abortRef = useRef<AbortController | null>(null)
-  const reloadTimerRef = useRef<number | null>(null)
 
   const [projectName, setProjectName] = useState("")
   const [projectDescription, setProjectDescription] = useState("")
   const [projectUrl, setProjectUrl] = useState("")
   const [projectBranch, setProjectBranch] = useState("main")
 
-  // Load GitHub repositories on open
-  const cacheKey = useMemo(() => `${user.githubUsername || ''}:${user.accessToken || ''}`, [user.githubUsername, user.accessToken])
-
-  const loadRepos = async (forceReload = false) => {
+  // Simple repo loading - no caching, no pre-warming
+  const loadRepos = async () => {
     // Early validations with user-friendly errors
     if (!backend) {
       setError('Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URI and reload the page.')
@@ -49,85 +46,57 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
       setRepos([])
       return
     }
+    
     setError(null)
-    // sessionStorage cache (persists across page reloads in session)
-    const storageKey = `gh:repos:${cacheKey}`
-    const TTL = 5 * 60 * 1000 // 5 minutes
-    if (!forceReload) {
-      try {
-        const cachedStr = sessionStorage.getItem(storageKey)
-        if (cachedStr) {
-          const parsed = JSON.parse(cachedStr) as { ts: number; repos: Repo[] }
-          if (parsed && parsed.ts && Date.now() - parsed.ts < TTL) {
-            setRepos(parsed.repos || [])
-            reposCache.set(cacheKey, parsed.repos || [])
-            return
-          }
-        }
-      } catch {}
-    }
     setLoading(true)
-    // Use in-memory cached data unless forceReload
-    if (!forceReload && reposCache.has(cacheKey)) {
-      setRepos(reposCache.get(cacheKey) || [])
-      setLoading(false)
-      return
-    }
+    
     // Abort any in-flight request
     if (abortRef.current) {
       abortRef.current.abort()
     }
     const controller = new AbortController()
     abortRef.current = controller
-    // Track if this error was due to our explicit timeout
-    let abortedByTimeout = false
+    
     try {
       const url = `${backend}/api/v1/getUserGitHubRepositories?provider=${user.provider}&authToken=${user.authCode}&access_token=${user.accessToken}&username=${user.githubUsername}`
-      // Redact sensitive query params for logs
-      const safeUrl = url
-        .replace(/access_token=[^&]+/i, 'access_token=***')
-        .replace(/authToken=[^&]+/i, 'authToken=***')
-      console.debug('[Repos] Fetching:', safeUrl)
-
-      // Enforce a client-side timeout to avoid hanging requests
-      const TIMEOUT_MS = 15000
-      const timeoutId = window.setTimeout(() => {
-        abortedByTimeout = true
-        controller.abort()
-      }, TIMEOUT_MS)
+      console.log('[Repos] Loading repositories...')
+      console.log('[Repos] Making request to backend...')
 
       const res = await fetch(url, { signal: controller.signal })
-      window.clearTimeout(timeoutId)
+      
+      console.log('[Repos] Response received, status:', res.status)
+      
       if (!res.ok) {
         const text = await res.text()
+        console.log('[Repos] Error response body:', text)
         throw new Error(text || `Failed to load repos (${res.status})`)
       }
+      
       const data = await res.json()
       const list = Array.isArray(data) ? data : []
+      console.log('[Repos] Loaded successfully:', list.length, 'repositories')
       setRepos(list)
-      reposCache.set(cacheKey, list)
-      try {
-        sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: list }))
-      } catch {}
     } catch (e: any) {
       if (e?.name === 'AbortError') {
-        // Distinguish between manual abort (reload/unmount) and timeout
-        if (typeof window !== 'undefined' && (e?.message?.toLowerCase?.().includes('signal') || e?.message === '' || abortedByTimeout)) {
-          if (abortedByTimeout) {
-            setError('Loading repositories timed out after 15s. Check your network, backend availability, or CORS, then click Reload.')
-            setRepos([])
-          }
-          return
-        }
+        console.log('[Repos] Request cancelled')
+        return
       }
-      const msg = (e?.message || '').toString()
-      // Common NetworkError cases: CORS, DNS, Mixed Content, server down
-      const hint = msg.includes('NetworkError')
-        ? ' Possible causes: CORS blocked, invalid backend URL, server offline, or mixed content (https page calling http backend).'
-        : ''
-      setError((msg || 'Failed to load repositories') + hint)
+      
+      let msg = e?.message || 'Failed to load repositories'
+      
+      // Detect common CORS errors
+      if (msg.includes('CORS') || msg.includes('Access-Control-Allow-Origin') || 
+          msg.includes('cross-origin') || msg.includes('Not allowed by CORS')) {
+        msg = 'CORS Error: The backend server is not allowing requests from this domain. Please check the backend CORS configuration to allow requests from your frontend URL.'
+      } else if (msg.includes('NetworkError') || msg.includes('fetch')) {
+        msg = 'Network Error: Cannot reach the backend server. Please check if the backend URL is correct and the server is running.'
+      }
+      
+      console.error('[Repos] Error:', msg)
+      setError(msg)
       setRepos([])
     } finally {
+      console.log('[Repos] Request completed, setting loading to false')
       setLoading(false)
     }
   }
@@ -138,7 +107,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
       if (abortRef.current) abortRef.current.abort()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, cacheKey, user.provider, user.authCode, user.accessToken, user.githubUsername])
+  }, [backend, user.provider, user.authCode, user.accessToken, user.githubUsername])
 
   // When a repo is selected, prefill name/url/branch
   const onSelectRepo = (repoName: string) => {
@@ -162,7 +131,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch(`${backend}/projects`, {
+      const res = await fetch(`${backend}/api/v1/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -207,10 +176,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                     Repository
                     <button
                       type='button'
-                      onClick={() => {
-                        if (reloadTimerRef.current) window.clearTimeout(reloadTimerRef.current)
-                        reloadTimerRef.current = window.setTimeout(() => loadRepos(true), 200)
-                      }}
+                      onClick={loadRepos}
                       disabled={loading}
                       className='text-xs text-gray-500 hover:text-black disabled:opacity-50 flex items-center gap-1'
                       aria-label='Reload repositories'
@@ -219,9 +185,9 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                     </button>
                   </label>
                   {loading ? (
-                    <div className='w-full'>
-                      <div className='h-9 rounded bg-gray-200 animate-pulse' />
-                      <div className='mt-2 h-3 w-40 rounded bg-gray-200 animate-pulse' />
+                    <div className='w-full flex items-center gap-2 p-2 border rounded text-sm text-gray-600'>
+                      <Loader2 className='h-4 w-4 animate-spin' />
+                      Loading repositories...
                     </div>
                   ) : (
                     <div className='relative'>
