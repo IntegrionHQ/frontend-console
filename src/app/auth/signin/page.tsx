@@ -72,9 +72,16 @@ const SignInPage = () => {
 
   
   useEffect(() => {
-    logObject("Auth parameters", { provider, authCode });
+    // Determine provider from URL or last clicked button
+    const lastProvider = typeof window !== 'undefined' ? sessionStorage.getItem('lastProvider') : null;
+    const providerHint = provider || lastProvider || undefined;
+    logObject("Auth parameters", { provider, providerHint, authCode });
     
-    if (provider && authCode && !isAuthenticating) {
+    if (authCode && !isAuthenticating) {
+      if (providerHint && providerHint !== 'github') {
+        setDebugInfo(prev => `${prev}\nProvider '${providerHint}' is not currently handled in this flow.`)
+        return;
+      }
       setIsAuthenticating(true);
       setDebugInfo("Starting authentication process...");
       
@@ -82,31 +89,33 @@ const SignInPage = () => {
         try {
           setDebugInfo(prev => `${prev}\nStarting GitHub authentication`);
           
-          // Construct and log the full request URL
+          // Construct and log the full request URL (masked for safety)
           const requestUrl = `${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`;
-          setDebugInfo(prev => `${prev}\nRequest URL: ${requestUrl}`);
-          
+          const safeRequestUrl = requestUrl.replace(/authToken=[^&]+/i, 'authToken=***');
+          setDebugInfo(prev => `${prev}\nRequest URL: ${safeRequestUrl}`);
+          console.log('[GitHub Sign-In] Request:', safeRequestUrl);
+
           // Fetch data from the API
           const response = await fetch(requestUrl);
-          
-          setDebugInfo(prev => `${prev}\nResponse status: ${response.status}`);
-          setApiStatus(response.status);
-          
+          const status = response.status;
+          setApiStatus(status);
+          console.log('[GitHub Sign-In] Status:', status);
+
+          // Always read the body as text so we can log regardless of status
+          const responseText = await response.text().catch(() => '');
+          console.log('[GitHub Sign-In] Raw:', responseText);
+          setDebugInfo(prev => `${prev}\nRaw response: ${responseText.substring(0, 200)}...`);
+
           if (!response.ok) {
-            const errorText = await response.text();
-            setDebugInfo(prev => `${prev}\nAPI Error: ${response.status} - ${errorText}`);
-            
-            if (response.status === 500) {
+            setDebugInfo(prev => `${prev}\nAPI Error: ${status} - ${responseText}`);
+            console.error('[GitHub Sign-In] Error body:', responseText);
+            if (status === 500) {
               setAuthError("Server error (500): The authentication server encountered an error. Please try again later or contact support.");
             } else {
-              setAuthError(`Authentication failed: ${response.status} - ${errorText}`);
+              setAuthError(`Authentication failed: ${status} - ${responseText}`);
             }
             return;
           }
-          
-          // Get response as text first to log it
-          const responseText = await response.text();
-          setDebugInfo(prev => `${prev}\nRaw response: ${responseText.substring(0, 200)}...`);
           
           // Then parse it as JSON
           let data;
@@ -118,11 +127,32 @@ const SignInPage = () => {
             setAuthError("Invalid response format");
             return;
           }
+
+          // Dev-friendly console logging with sensitive fields masked
+          try {
+            const redact = (obj: any) => JSON.parse(
+              JSON.stringify(obj, (key, value) => {
+                if (typeof value === 'string') {
+                  const k = key.toLowerCase();
+                  if (k.includes('token') || k.includes('auth')) return '***';
+                }
+                return value;
+              })
+            );
+            // Also mask tokens if present at top level
+            const masked = redact(data);
+            // Collapse the group by default to reduce noise
+            console.groupCollapsed('[GitHub Sign-In] Backend response');
+            console.log('Request:', safeRequestUrl);
+            console.log('Status:', status);
+            console.log('Parsed:', masked);
+            console.groupEnd();
+          } catch {}
           
           
-          if (data && data.user.id) {
+          if (data && data.user && data.user.id) {
             logObject("User data from API", data.user);
-            
+            console.log(data.user);
             
             const userData = {
               id: data.user.id,
@@ -138,13 +168,13 @@ const SignInPage = () => {
             logObject("Setting user data", userData);
             
            
-            setUser({...userData,authCode,provider});
+            setUser({...userData,authCode,provider: providerHint || 'github'});
 
             // Pre-warm GitHub repositories cache for modal (sessionStorage + 5min TTL)
             try {
               const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
               const storageKey = `gh:repos:${cacheKey}`
-              const reposUrl = `${backend_uri}/api/v1/getUserGitHubRepositories?provider=${provider}&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
+              const reposUrl = `${backend_uri}/api/v1/getUserGitHubRepositories?provider=${providerHint || 'github'}&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
               fetch(reposUrl)
                 .then(async (res) => {
                   if (!res.ok) return
@@ -166,7 +196,7 @@ const SignInPage = () => {
                 logObject("Parsed user from localStorage", parsedUser);
                 if(parsedUser )
                 {
-                  router.push(`/dashboard/projects?provider=${provider}&authcode=${authCode}`)
+                  router.push(`/dashboard/projects?provider=${providerHint || 'github'}&authcode=${authCode}`)
                 }
               } else {
                 setDebugInfo(prev => `${prev}\nNo user data found in localStorage`);
@@ -180,16 +210,17 @@ const SignInPage = () => {
             setAuthError("Invalid user data received");
           }
         } catch (error) {
-          setDebugInfo(prev => `${prev}\nAuthentication error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          setAuthError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          const errMsg = error instanceof Error ? error.message : 'Unknown error'
+          setDebugInfo(prev => `${prev}\nAuthentication error: ${errMsg}`);
+          setAuthError(`Error: ${errMsg}`);
+          console.error('[GitHub Sign-In] Network/Unhandled error:', errMsg);
         } finally {
           setIsAuthenticating(false);
         }
       };
       
-      if (provider === "github") {
-        handleGithubAuth();
-      }
+      // Default to GitHub handler when a code is present and provider is unknown
+      handleGithubAuth();
     
     }
   }, [ provider,authCode,router]);
@@ -201,6 +232,7 @@ const SignInPage = () => {
     
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
+    try { sessionStorage.setItem('lastProvider', 'github'); } catch {}
     window.location.href = githubAuthUrl;
   };
 
@@ -210,6 +242,7 @@ const SignInPage = () => {
     
     const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&state=STATE&scope=read_api`;
     setDebugInfo(`GitLab Auth URL: ${gitlabAuthUrl}`);
+    try { sessionStorage.setItem('lastProvider', 'gitlab'); } catch {}
     window.location.href = gitlabAuthUrl;
   };
 
@@ -390,12 +423,12 @@ const SignInPage = () => {
         )} */}
         
         {/* Debug section - visible only during development */}
-        {/* {process.env.NODE_ENV === 'development' && debugInfo && (
+        {process.env.NODE_ENV !== 'production' && debugInfo && (
           <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
             <h4 className="font-bold mb-2">Debug Information:</h4>
             <pre>{debugInfo}</pre>
           </div>
-        )} */}
+        )}
       </div>
     </main>
   );

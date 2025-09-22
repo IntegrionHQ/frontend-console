@@ -1,21 +1,8 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+
 import "./globals.css";
 import { UserProvider } from "./store/global/context/userContext";
 
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
-
-const manrope = Manrope({
-  subsets: ["latin"]
-})
 
 export const metadata: Metadata = {
   title: "Integrion",

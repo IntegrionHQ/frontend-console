@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { usePathname } from "next/navigation"
 import { 
   LayoutGrid, 
@@ -34,9 +35,30 @@ const nav = {
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const { user } = useUser()
+  const router = useRouter()
+  const { user, clearUser } = useUser()
   const displayName = user?.username || user?.githubUsername || user?.email || "Guest"
   const displayEmail = user?.email || user?.primaryEmail || ""
+
+  const handleSignOut = () => {
+    try {
+      // Clear user context + localStorage
+      clearUser()
+      // Clear any session repo caches
+      try {
+        const keys: string[] = []
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i)
+          if (k) keys.push(k)
+        }
+        keys.forEach((k) => {
+          if (k.startsWith('gh:repos:')) sessionStorage.removeItem(k)
+        })
+      } catch {}
+    } finally {
+      router.push('/auth/signin')
+    }
+  }
 
   return (
     <aside className="h-screen sticky top-0 w-64 shrink-0 border-r bg-white text-gray-900">
@@ -93,9 +115,14 @@ export function AppSidebar() {
         {displayEmail ? (
           <div className="text-gray-500 text-xs">{displayEmail}</div>
         ) : null}
-        <Link href="/auth/signin" className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-gray-50">
-          <Settings className="h-3.5 w-3.5" /> Account
-        </Link>
+        <div className="mt-3 flex gap-2">
+          <Link href="/auth/signin" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-gray-50">
+            <Settings className="h-3.5 w-3.5" /> Account
+          </Link>
+          <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-gray-50">
+            Sign out
+          </button>
+        </div>
       </div>
     </aside>
   )

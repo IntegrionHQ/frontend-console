@@ -38,7 +38,17 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const cacheKey = useMemo(() => `${user.githubUsername || ''}:${user.accessToken || ''}`, [user.githubUsername, user.accessToken])
 
   const loadRepos = async (forceReload = false) => {
-    if (!backend) return
+    // Early validations with user-friendly errors
+    if (!backend) {
+      setError('Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URI and reload the page.')
+      setRepos([])
+      return
+    }
+    if (!user?.accessToken || !user?.githubUsername) {
+      setError('Missing GitHub credentials. Please sign in again to load your repositories.')
+      setRepos([])
+      return
+    }
     setError(null)
     // sessionStorage cache (persists across page reloads in session)
     const storageKey = `gh:repos:${cacheKey}`
@@ -69,9 +79,25 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     }
     const controller = new AbortController()
     abortRef.current = controller
+    // Track if this error was due to our explicit timeout
+    let abortedByTimeout = false
     try {
       const url = `${backend}/api/v1/getUserGitHubRepositories?provider=${user.provider}&authToken=${user.authCode}&access_token=${user.accessToken}&username=${user.githubUsername}`
+      // Redact sensitive query params for logs
+      const safeUrl = url
+        .replace(/access_token=[^&]+/i, 'access_token=***')
+        .replace(/authToken=[^&]+/i, 'authToken=***')
+      console.debug('[Repos] Fetching:', safeUrl)
+
+      // Enforce a client-side timeout to avoid hanging requests
+      const TIMEOUT_MS = 15000
+      const timeoutId = window.setTimeout(() => {
+        abortedByTimeout = true
+        controller.abort()
+      }, TIMEOUT_MS)
+
       const res = await fetch(url, { signal: controller.signal })
+      window.clearTimeout(timeoutId)
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `Failed to load repos (${res.status})`)
@@ -84,8 +110,22 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
         sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: list }))
       } catch {}
     } catch (e: any) {
-      if (e?.name === 'AbortError') return
-      setError(e?.message || 'Failed to load repositories')
+      if (e?.name === 'AbortError') {
+        // Distinguish between manual abort (reload/unmount) and timeout
+        if (typeof window !== 'undefined' && (e?.message?.toLowerCase?.().includes('signal') || e?.message === '' || abortedByTimeout)) {
+          if (abortedByTimeout) {
+            setError('Loading repositories timed out after 15s. Check your network, backend availability, or CORS, then click Reload.')
+            setRepos([])
+          }
+          return
+        }
+      }
+      const msg = (e?.message || '').toString()
+      // Common NetworkError cases: CORS, DNS, Mixed Content, server down
+      const hint = msg.includes('NetworkError')
+        ? ' Possible causes: CORS blocked, invalid backend URL, server offline, or mixed content (https page calling http backend).'
+        : ''
+      setError((msg || 'Failed to load repositories') + hint)
       setRepos([])
     } finally {
       setLoading(false)

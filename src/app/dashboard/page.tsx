@@ -5,11 +5,18 @@ import { Plus } from 'lucide-react'
 import { useUser } from '@/app/store/global/context/userContext'
 import ProjectSelectionModals from '@/app/components/core/modals/projectSelectionModals'
 import {Driver} from 'iconsax-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+
 const DashboardPage = () => {
-  const { user } = useUser()
+  const { user, setUser } = useUser()
   const backend = process.env.NEXT_PUBLIC_BACKEND_URI
   const [projects, setProjects] = useState<any[] | null>(null)
   const [open, setOpen] = useState(false)
+  const params = useSearchParams()
+  const router = useRouter()
+  const provider = params.get("provider")
+  const authCode = params.get("code")
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   const fetchProjects = async () => {
     if (!user?.id || !backend) {
@@ -28,6 +35,82 @@ const DashboardPage = () => {
       setProjects([])
     }
   }
+
+  // Handle GitHub OAuth callback if code is present
+  useEffect(() => {
+    if (authCode && provider === 'github' && !isAuthenticating && !user?.id) {
+      setIsAuthenticating(true)
+      
+      const handleGithubAuth = async () => {
+        try {
+          console.log('[Dashboard GitHub Auth] Processing code:', authCode)
+          
+          const requestUrl = `${backend}/api/v1/registerWithGitHub?authToken=${authCode}`
+          const response = await fetch(requestUrl)
+          const status = response.status
+          
+          const responseText = await response.text().catch(() => '')
+          console.log('[Dashboard GitHub Auth] Raw response:', responseText)
+          
+          if (!response.ok) {
+            console.error('[Dashboard GitHub Auth] Error:', status, responseText)
+            return
+          }
+          
+          let data
+          try {
+            data = JSON.parse(responseText)
+            console.log('[Dashboard GitHub Auth] Parsed data:', data)
+          } catch (e) {
+            console.error('[Dashboard GitHub Auth] JSON parse error:', e)
+            return
+          }
+          
+          if (data && data.user && data.user.id) {
+            const userData = {
+              id: data.user.id,
+              email: data.user.primaryEmail || data.user.githubEmail || "",
+              username: data?.user.githubUsername || "",
+              githubUsername: data.user.githubUsername || "",
+              primaryEmail: data.user.primaryEmail || "",
+              gitlabUsername: data.user.gitlabUsername || "",
+              bitbucketUsername: data.user.bitbucketUsername || "",
+              accessToken: data.user.githubAccessToken || ""
+            }
+            
+            console.log('[Dashboard GitHub Auth] Setting user:', userData)
+            setUser({...userData, authCode, provider: 'github'})
+            
+            // Pre-warm GitHub repositories cache
+            try {
+              const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
+              const storageKey = `gh:repos:${cacheKey}`
+              const reposUrl = `${backend}/api/v1/getUserGitHubRepositories?provider=github&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
+              fetch(reposUrl)
+                .then(async (res) => {
+                  if (!res.ok) return
+                  const list = await res.json()
+                  const arr = Array.isArray(list) ? list : []
+                  try {
+                    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: arr }))
+                  } catch {}
+                })
+                .catch(() => {})
+            } catch {}
+            
+            // Clean up URL by removing OAuth params
+            router.replace('/dashboard')
+          }
+        } catch (error) {
+          console.error('[Dashboard GitHub Auth] Network error:', error)
+        } finally {
+          setIsAuthenticating(false)
+        }
+      }
+      
+      handleGithubAuth()
+    }
+  }, [authCode, provider, backend, user?.id, setUser, router, isAuthenticating])
 
   useEffect(() => {
     fetchProjects()
