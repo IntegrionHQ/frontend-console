@@ -222,7 +222,7 @@ const SignUpPage = () => {
    
       <div className="w-full  flex flex-col justify-start items-start   rounded-lg h-full p-10 max-w-[600px]">
         <div>
-          <h1 className="hemming text-2xl font-normal text-white jb  tracking-wider">Create an account</h1>
+          <h1 className="hemming text-2xl font-normal text-black jb  tracking-wider">Create an account</h1>
         </div>
         
         {/* {authError && (
@@ -240,7 +240,7 @@ const SignUpPage = () => {
           <> */}
             <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
               <button 
-                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
+                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
                 onClick={handleGithubLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -256,7 +256,7 @@ const SignUpPage = () => {
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
+                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
                 onClick={handleGitLabLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -271,7 +271,7 @@ const SignUpPage = () => {
                 </span>
               </button>
               <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition" 
+                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
                 onClick={handleGitLabLogin}
               >
                 <span className="flex justify-center items-center gap-4 font-normal manrope">
@@ -287,22 +287,22 @@ const SignUpPage = () => {
               </button>
             </div>
 <div className="flex justify-center items-center w-full mt-5">
-           <span className="flex justify-center items-center text-white manrope">
-            <hr className="w-1/4 h-1/4 bg-white"/>
+           <span className="flex justify-center items-center text-black manrope">
+            <hr className="w-1/4 h-1/4 bg-black"/>
             or
-            <hr className="w-1/4 h-1/4 bg-white"/>
+            <hr className="w-1/4 h-1/4 bg-black"/>
            </span>
             </div>
 
             <div className="w-full">
               <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
           <div className="flex flex-col gap-1 w-full">
-            <label htmlFor="email" className="font-light text-sm text-white manrope">Email</label>
+            <label htmlFor="email" className="font-light text-sm text-black manrope">Email</label>
             <input
               id="email"
               name="email"
               type="email"
-              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-white text-sm font-light manrope outline-none"
+              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-black text-sm font-light manrope outline-none"
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               value={formik.values.email}
@@ -314,13 +314,13 @@ const SignUpPage = () => {
             ) : null}
           </div>
           <div className="flex flex-col gap-1 w-full">
-        <label htmlFor="password" className="font-light text-xs text-white manrope">Password</label>
+        <label htmlFor="password" className="font-light text-xs text-black manrope">Password</label>
         <div className="relative">
           <input
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-white font-light manrope outline-none"
+            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-black font-light manrope outline-none"
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
             value={formik.values.password}
@@ -346,21 +346,21 @@ const SignUpPage = () => {
       </div>
 
       <div className="w-full flex justify-center items-center">
-        <span className="text-white manrope font-normal text-sm">By creating an account, you agree to the {" "} 
-          <Link href="" className="text-blue-100 underline">
+        <span className="text-black manrope font-normal text-sm">By creating an account, you agree to the {" "} 
+          <Link href="" className="text-black underline">
           terms of our service
           </Link>
           {" "}
            and 
            {" "}
-            <Link href="" className="text-blue-100 underline" >
+            <Link href="" className="text-black underline" >
           privacy policy
           </Link>
         </span>
         </div>
           <button
             type="submit"
-            className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition flex justify-center items-center"
+            className=" manrope text-sm font-semibold bg-black text-black  px-4 py-3 mt-2  transition flex justify-center items-center"
           >
             {
               loading? (
@@ -370,7 +370,7 @@ const SignUpPage = () => {
           </button>
         </form>
             </div>
-            <div className="w-full flex justify-between text-center  text-white mt-10">
+            <div className="w-full flex justify-between text-center  text-black mt-10">
               <span className="text-sm manrope">
                 Already have an account ?{" "}
                 <span className="underline font-semibold">

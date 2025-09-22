@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface UserContextType {
+  id?: string;
   email: string;
   username: string;
   githubUsername?: string;
@@ -22,6 +23,7 @@ interface UserContextValue {
 
 // Create default user object
 const defaultUser: UserContextType = {
+  id: "",
   email: "",
   username: "",
   githubUsername: "",
