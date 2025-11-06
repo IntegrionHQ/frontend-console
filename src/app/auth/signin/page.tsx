@@ -147,9 +147,11 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
           setIsAuthenticating(false);
         }
       };
-
+      console.log(provider)
   if (provider === "github" && authCode) handleGithubAuth();
-    else if (installationId) processGithubInstallation();
+
+    }else if(provider && installationId && !isAuthenticating){
+processGithubInstallation()
     }
   }, [provider, authCode, installationId, router]);
   
@@ -193,9 +195,12 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
     window.location.href = githubAuthUrl;
   };
 
+  // need to make url an env
+
   const handleGithubAppInstall = () => {
     
-    window.location.href = `${GITHUB_APP_INSTALL_URL!}?redirect_url=http://localhost:3000/auth/signup?provider=github&state=${state}`;
+    // so i am curr redirecting to the signup page after install, kindly remind me to change it when you decide on where to place it
+    window.location.href = `https://github.com/apps/integrionhq/installations/new?state=${state}`;
   };
 
   const handleGitLabLogin = () => {

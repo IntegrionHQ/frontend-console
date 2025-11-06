@@ -18,6 +18,8 @@ const page = () => {
    useEffect(() => {
       const fetchProjects = async () => {
         try {
+          // changes to this: /api/v1/github/repos and you don't need anything to make it once they are auth...
+          // /api/v1/github/repo/branches to get a branch of a repo. just need the username and repo slugs. not the person's username per say but they username the repo is behind ie. github.com/my-comp/my-repo. it's for me but it's in the org `my-comp`
           const response = await fetch(`${backend}/api/v1/getUserGitHubRepositories?provider=${user.provider}&authToken=${user.authCode}&access_token=${user.accessToken}&username=${user.githubUsername}`);
           const data = await response.json();
           console.log(data)
