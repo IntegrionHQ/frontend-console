@@ -78,7 +78,8 @@ const SignUpPage = () => {
         console.error("Error during account creation:", error);
         // Handle error (e.g., show error message to the user)
       } finally {
-        setLoading(false); // Set loading state to false after the request completes
+        setLoading(false);
+        router.push("/auth/signup/otp") // Set loading state to false after the request completes
       }
     },
   });

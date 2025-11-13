@@ -53,6 +53,7 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
     },
     validationSchema: SignUpSchema,
     onSubmit: (values) => {
+
       fetch(`${backend_uri}/api/v1/login`, {
         method: "POST",
         headers: {
@@ -64,6 +65,7 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
         }),
       });
     },
+
   });
 
   const logObject = (label: string, obj: any) => {
@@ -76,6 +78,7 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
     logObject("Auth parameters", { provider, authCode, installationId });
     console.log(window.location.href)
     if (provider && authCode && !isAuthenticating) {
+
       setIsAuthenticating(true);
       setDebugInfo("Starting authentication process...");
 
@@ -118,6 +121,7 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
 
           if (data && data.user.id) {
             const userData = {
+              id: data.user.id,
               email: data.user.primaryEmail || data.user.githubEmail || "",
               username: data.user.githubUsername || "",
               githubUsername: data.user.githubUsername || "",
@@ -209,6 +213,7 @@ processGithubInstallation()
 
     const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&state=STATE&scope=read_api`;
     setDebugInfo(`GitLab Auth URL: ${gitlabAuthUrl}`);
+    try { sessionStorage.setItem('lastProvider', 'gitlab'); } catch {}
     window.location.href = gitlabAuthUrl;
   };
 
@@ -419,12 +424,12 @@ processGithubInstallation()
         )} */}
 
         {/* Debug section - visible only during development */}
-        {/* {process.env.NODE_ENV === 'development' && debugInfo && (
+        {process.env.NODE_ENV !== 'production' && debugInfo && (
           <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
             <h4 className="font-bold mb-2">Debug Information:</h4>
             <pre>{debugInfo}</pre>
           </div>
-        )} */}
+        )}
       </div>
     </main>
   );
