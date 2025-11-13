@@ -1,20 +1,28 @@
-'use client'
+"use client";
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useUser } from '@/app/store/global/context/userContext';
-import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
+import { useUser } from "@/app/store/global/context/userContext";
+import { RiGithubFill, RiGithubLine, RiGitlabFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
 import { Loader } from "lucide-react";
 import { Formik, useFormik } from "formik";
 import * as Yup from "yup";
-import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import crypto from "crypto";
+import { NextResponse } from "next/server";
 const SignInPage = () => {
+  const state = crypto.randomBytes(16).toString("hex");
   const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
+  const redirectState = params.get("state");
+    const installationId = params.get("installation_id");
+    
+
   const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI;
-  
+const GITHUB_APP_INSTALL_URL = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALL_URL
+const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
   const { setUser } = useUser();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -24,234 +32,199 @@ const SignInPage = () => {
 
   const router = useRouter();
   const SignUpSchema = Yup.object().shape({
-      email: Yup.string()
-        .email("Invalid email format. Kindly try again")
-        .required("E-mail is required"),
-      password: Yup.string()
-        .min(8, "Your password must be at least 8 characters long")
-        .matches(/[a-z]/, "Password must contain at least one lowercase letter")
-        .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
-        .matches(/\d/, "Password must contain at least one number")
-        .matches(/[@$!%*?&#^()_\-+=]/, "Password must contain at least one special character")
-        .required("Password is required"),
-    });
+    email: Yup.string()
+      .email("Invalid email format. Kindly try again")
+      .required("E-mail is required"),
+    password: Yup.string()
+      .min(8, "Your password must be at least 8 characters long")
+      .matches(/[a-z]/, "Password must contain at least one lowercase letter")
+      .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .matches(/\d/, "Password must contain at least one number")
+      .matches(
+        /[@$!%*?&#^()_\-+=]/,
+        "Password must contain at least one special character"
+      )
+      .required("Password is required"),
+  });
   const formik = useFormik({
     initialValues: {
       email: "",
-      password: ""
+      password: "",
     },
     validationSchema: SignUpSchema,
     onSubmit: (values) => {
-      const login = async () => {
-        const response = await fetch(`${backend_uri}/api/v1/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password
-          })
-        });
-        if (!response.ok) {
-         const errorText= await response.text;
-         console.error(errorText)
-        }
-        router.push("/auth/signup/otp")
-      };
-      login();
-    }
+
+      fetch(`${backend_uri}/api/v1/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+        }),
+      });
+    },
+
   });
 
-  
   const logObject = (label: string, obj: any) => {
     const objStr = JSON.stringify(obj, null, 2);
     console.log(`${label}:`, objStr);
-    setDebugInfo(prev => `${prev}\n${label}: ${objStr}`);
+    setDebugInfo((prev) => `${prev}\n${label}: ${objStr}`);
   };
 
-  
-  useEffect(() => {
-    // Determine provider from URL or last clicked button
-    const lastProvider = typeof window !== 'undefined' ? sessionStorage.getItem('lastProvider') : null;
-    const providerHint = provider || lastProvider || undefined;
-    logObject("Auth parameters", { provider, providerHint, authCode });
-    
-    if (authCode && !isAuthenticating) {
-      if (providerHint && providerHint !== 'github') {
-        setDebugInfo(prev => `${prev}\nProvider '${providerHint}' is not currently handled in this flow.`)
-        return;
-      }
+  useEffect(() => {   
+    logObject("Auth parameters", { provider, authCode, installationId });
+    console.log(window.location.href)
+    if (provider && authCode && !isAuthenticating) {
+
       setIsAuthenticating(true);
       setDebugInfo("Starting authentication process...");
-      
+
       const handleGithubAuth = async () => {
         try {
-          setDebugInfo(prev => `${prev}\nStarting GitHub authentication`);
-          
-          // Construct and log the full request URL (masked for safety)
-          const requestUrl = `${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`;
-          const safeRequestUrl = requestUrl.replace(/authToken=[^&]+/i, 'authToken=***');
-          setDebugInfo(prev => `${prev}\nRequest URL: ${safeRequestUrl}`);
-          console.log('[GitHub Sign-In] Request:', safeRequestUrl);
-
-          // Fetch data from the API
-          const response = await fetch(requestUrl);
-          const status = response.status;
-          setApiStatus(status);
-          console.log('[GitHub Sign-In] Status:', status);
-
-          // Always read the body as text so we can log regardless of status
-          const responseText = await response.text().catch(() => '');
-          console.log('[GitHub Sign-In] Raw:', responseText);
-          setDebugInfo(prev => `${prev}\nRaw response: ${responseText.substring(0, 200)}...`);
-
-          if (!response.ok) {
-            setDebugInfo(prev => `${prev}\nAPI Error: ${status} - ${responseText}`);
-            console.error('[GitHub Sign-In] Error body:', responseText);
-            if (status === 500) {
-              setAuthError("Server error (500): The authentication server encountered an error. Please try again later or contact support.");
-            } else {
-              setAuthError(`Authentication failed: ${status} - ${responseText}`);
-            }
+          const storedState = localStorage.getItem("github_oauth_state");
+          if (redirectState !== storedState) {
+            setAuthError("Invalid state parameter — possible CSRF detected");
             return;
           }
+
+          const requestUrl = `${backend_uri}/api/v1/auth/github/login`;
+          setDebugInfo((prev) => `${prev}\nRequest URL: ${requestUrl}`);
+
           
-          // Then parse it as JSON
+          const response = await fetch(requestUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              authToken: authCode,
+            }),
+          });
+
+          setApiStatus(response.status);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            setAuthError(`Authentication failed: ${response.status} - ${errorText}`);
+            return;
+          }
+
+          const responseText = await response.text();
           let data;
           try {
             data = JSON.parse(responseText);
-            logObject("Parsed data", data);
-          } catch (e) {
-            setDebugInfo(prev => `${prev}\nJSON parse error: ${e instanceof Error ? e.message : 'Unknown error'}`);
+          } catch {
             setAuthError("Invalid response format");
             return;
           }
 
-          // Dev-friendly console logging with sensitive fields masked
-          try {
-            const redact = (obj: any) => JSON.parse(
-              JSON.stringify(obj, (key, value) => {
-                if (typeof value === 'string') {
-                  const k = key.toLowerCase();
-                  if (k.includes('token') || k.includes('auth')) return '***';
-                }
-                return value;
-              })
-            );
-            // Also mask tokens if present at top level
-            const masked = redact(data);
-            // Collapse the group by default to reduce noise
-            console.groupCollapsed('[GitHub Sign-In] Backend response');
-            console.log('Request:', safeRequestUrl);
-            console.log('Status:', status);
-            console.log('Parsed:', masked);
-            console.groupEnd();
-          } catch {}
-          
-          
-          if (data && data.user && data.user.id) {
-            logObject("User data from API", data.user);
-            console.log(data.user);
-            
+          if (data && data.user.id) {
             const userData = {
               id: data.user.id,
               email: data.user.primaryEmail || data.user.githubEmail || "",
-              username: data?.user.githubUsername || "",
+              username: data.user.githubUsername || "",
               githubUsername: data.user.githubUsername || "",
               primaryEmail: data.user.primaryEmail || "",
               gitlabUsername: data.user.gitlabUsername || "",
               bitbucketUsername: data.user.bitbucketUsername || "",
-              accessToken: data.user.githubAccessToken || ""
+              accessToken: data.user.githubAccessToken || "",
+            
             };
-            
-            logObject("Setting user data", userData);
-            
-           
-            setUser({...userData,authCode,provider: providerHint || 'github'});
 
-            // Pre-warm GitHub repositories cache for modal (sessionStorage + 5min TTL)
-            try {
-              const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
-              const storageKey = `gh:repos:${cacheKey}`
-              const reposUrl = `${backend_uri}/api/v1/getUserGitHubRepositories?provider=${providerHint || 'github'}&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
-              fetch(reposUrl)
-                .then(async (res) => {
-                  if (!res.ok) return
-                  const list = await res.json()
-                  const arr = Array.isArray(list) ? list : []
-                  try {
-                    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: arr }))
-                  } catch {}
-                })
-                .catch(() => {})
-            } catch {}
-            
-           
+            setUser({ ...userData, authCode, provider });
+
+            // Redirect after saving
             setTimeout(() => {
-              const storedUser = localStorage.getItem('user');
-              setDebugInfo(prev => `${prev}\nUser data in localStorage: ${storedUser}`);
-              if (storedUser) {
-                const parsedUser = JSON.parse(storedUser);
-                logObject("Parsed user from localStorage", parsedUser);
-                if(parsedUser )
-                {
-                  router.push(`/dashboard/projects?provider=${providerHint || 'github'}&authcode=${authCode}`)
-                }
-              } else {
-                setDebugInfo(prev => `${prev}\nNo user data found in localStorage`);
-              }
-              
+              router.push(
+                `/dashboard/projects?provider=${provider}&authcode=${authCode}&installation_id=${installationId}`
+              );
             }, 500);
-
-
           } else {
-            setDebugInfo(prev => `${prev}\nInvalid user data structure`);
             setAuthError("Invalid user data received");
           }
         } catch (error) {
-          const errMsg = error instanceof Error ? error.message : 'Unknown error'
-          setDebugInfo(prev => `${prev}\nAuthentication error: ${errMsg}`);
-          setAuthError(`Error: ${errMsg}`);
-          console.error('[GitHub Sign-In] Network/Unhandled error:', errMsg);
+          setAuthError(
+            `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+          );
         } finally {
           setIsAuthenticating(false);
         }
       };
-      
-      // Default to GitHub handler when a code is present and provider is unknown
-      handleGithubAuth();
-    
-    }
-  }, [ provider,authCode,router]);
+      console.log(provider)
+  if (provider === "github" && authCode) handleGithubAuth();
 
- 
+    }else if(provider && installationId && !isAuthenticating){
+processGithubInstallation()
+    }
+  }, [provider, authCode, installationId, router]);
+  
+
+  
+    const processGithubInstallation = async () => {
+      console.log(installationId, "here")
+      if (!installationId) return;
+      setIsAuthenticating(true);
+      try {
+        const response = await fetch(`${backend_uri}/api/v1/auth/github/install`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ installationId }),
+        });
+
+        if (!response.ok) throw new Error(await response.text());
+        console.log("Installation ID sent successfully");
+
+        console.log(installationId)
+        // router.push("/signin");
+      } catch (err: any) {
+        setAuthError(err.message);
+      } finally {
+        setIsAuthenticating(false);
+      }
+    };
+
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
-    
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
+
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&state=${state}`;
+
+    // Store the state in localStorage or cookie to verify later
+    localStorage.setItem("github_oauth_state", state);
+
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
-    try { sessionStorage.setItem('lastProvider', 'github'); } catch {}
+
+    // Redirect the user to GitHub
     window.location.href = githubAuthUrl;
+  };
+
+  // need to make url an env
+
+  const handleGithubAppInstall = () => {
+    
+    // so i am curr redirecting to the signup page after install, kindly remind me to change it when you decide on where to place it
+    window.location.href = `https://github.com/apps/integrionhq/installations/new?state=${state}`;
   };
 
   const handleGitLabLogin = () => {
     const GITLAB_CLIENT_ID = process.env.NEXT_PUBLIC_GITLAB_CLIENT_ID;
-    const REDIRECT_URI = process.env.NEXT_PUBLIC_REDIRECT_URI_GITLAB;
     
+
     const gitlabAuthUrl = `https://gitlab.com/oauth/authorize?client_id=${GITLAB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&state=STATE&scope=read_api`;
     setDebugInfo(`GitLab Auth URL: ${gitlabAuthUrl}`);
     try { sessionStorage.setItem('lastProvider', 'gitlab'); } catch {}
     window.location.href = gitlabAuthUrl;
   };
 
- 
   const renderServerStatus = () => {
     if (apiStatus === 500) {
       return (
         <div className="w-full mt-2 text-sm text-gray-600">
-          <p>The authentication server is currently experiencing issues. This could be due to:</p>
+          <p>
+            The authentication server is currently experiencing issues. This
+            could be due to:
+          </p>
           <ul className="list-disc pl-5 mt-2">
             <li>Temporary server outage</li>
             <li>Maintenance in progress</li>
@@ -269,159 +242,187 @@ const SignInPage = () => {
   };
 
   return (
-    <main className="bg-white flex min-h-screen justify-center items-center max-w-[1920px] ">
-   
+    <main className="bg-black flex min-h-screen justify-center items-center max-w-[1920px] ">
       <div className="w-full  flex flex-col justify-start items-start   rounded-lg h-full p-10 max-w-[600px]">
         <div>
-          <h1 className="hemming text-2xl font-normal text-black jb  tracking-wider">Sign In to Integrion</h1>
+          <h1 className="hemming text-2xl font-normal text-white jb  tracking-wider">
+            Sign In to Integrion
+          </h1>
         </div>
-        
+
         {/* {authError && (
           <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
             {authError}
             {renderServerStatus()}
           </div>
         )} */}
-        
+
         {/* {isAuthenticating ? (
           <div className="w-full mt-10 text-center">
             <p>Authenticating, please wait...</p>
           </div>
         ) : (
           <> */}
-            <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
-              <button 
-                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
-                onClick={handleGithubLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                  {isAuthenticating && provider == "github" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGithubFill size={20}/>
-                  Github
-                    </>
-                  )}
-                 
-                </span>
-              </button>
-              <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
-                onClick={handleGitLabLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                 {isAuthenticating && provider == "gitlab" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGitlabFill size={20}/>
-                  Gitlab
-                    </>
-                  )}
-                </span>
-              </button>
-              <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
-                onClick={handleGitLabLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                {isAuthenticating && provider == "bitbucket" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGitlabFill size={20}/>
-                  Bitbucket
-                    </>
-                  )}
-                </span>
-              </button>
-            </div>
-<div className="flex justify-center items-center w-full mt-5">
-           <span className="flex justify-center items-center text-black manrope">
-            <hr className="w-1/4 h-1/4 bg-black"/>
-            or
-            <hr className="w-1/4 h-1/4 bg-black"/>
-           </span>
-            </div>
-
-            <div className="w-full">
-              <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
-          <div className="flex flex-col gap-1 w-full">
-            <label htmlFor="email" className="font-light text-sm text-black manrope">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-black text-sm font-light manrope outline-none"
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              value={formik.values.email}
-              autoComplete="email"
-              placeholder="your@email.com"
-            />
-            {formik.touched.email && formik.errors.email ? (
-              <div className="text-red-200 text-sm manrope font-light">{formik.errors.email}</div>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-1 w-full">
-        <label htmlFor="password" className="font-light text-xs text-black manrope">Password</label>
-        <div className="relative">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-black font-light manrope outline-none"
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            value={formik.values.password}
-            autoComplete="new-password"
-            placeholder="********"
-          />
+        <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
           <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2"
-            onClick={() => setShowPassword((prev:boolean) => !prev)}
-            tabIndex={-1}
+            className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition"
+            onClick={handleGithubLogin}
           >
-            {showPassword ? (
-              <EyeSlashIcon fontSize={12}/>
-            ) : (
-              <EyeIcon/>
-            )}
+            <span className="flex justify-center items-center gap-4 font-normal manrope">
+              {isAuthenticating && provider == "github" ? (
+                <Loader className="animate-spin" size={15} />
+              ) : (
+                <>
+                  <RiGithubFill size={20} />
+                  Github
+                </>
+              )}
+            </span>
+          </button>
+          <button
+            className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition"
+            onClick={handleGitLabLogin}
+          >
+            <span className="flex justify-center items-center gap-4 font-normal manrope">
+              {isAuthenticating && provider == "gitlab" ? (
+                <Loader className="animate-spin" size={15} />
+              ) : (
+                <>
+                  <RiGitlabFill size={20} />
+                  Gitlab
+                </>
+              )}
+            </span>
+          </button>
+          <button
+            className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition"
+            onClick={handleGitLabLogin}
+          >
+            <span className="flex justify-center items-center gap-4 font-normal manrope">
+              {isAuthenticating && provider == "bitbucket" ? (
+                <Loader className="animate-spin" size={15} />
+              ) : (
+                <>
+                  <RiGitlabFill size={20} />
+                  Bitbucket
+                </>
+              )}
+            </span>
+          </button>
+
+{/* this should be inside the app after auth and you should check the user obj to see if the installation has been done already */}
+            <button
+            className="w-full hemming text-md font-medium border border-gray-300 text-white  px-3 py-2 mt-2 hover:bg-white hover:text-black transition"
+            onClick={handleGithubAppInstall}
+          >
+            <span className="flex justify-center items-center gap-4 font-normal manrope">
+              {isAuthenticating && provider == "bitbucket" ? (
+                <Loader className="animate-spin" size={15} />
+              ) : (
+                <>
+                  <RiGithubLine size={20} />
+                  Github App Installation
+                </>
+              )}
+            </span>
           </button>
         </div>
-        {formik.touched.password && formik.errors.password ? (
-          <div className="text-red-200 text-xs manrope font-light">{formik.errors.password}</div>
-        ) : null}
-      </div>
-          <button
-            type="submit"
-            className=" manrope text-sm font-semibold bg-black text-white  px-4 py-3 mt-2  transition"
+        <div className="flex justify-center items-center w-full mt-5">
+          <span className="flex justify-center items-center text-white manrope">
+            <hr className="w-1/4 h-1/4 bg-white" />
+            or
+            <hr className="w-1/4 h-1/4 bg-white" />
+          </span>
+        </div>
+
+        <div className="w-full">
+          <form
+            className="w-full mt-6 flex flex-col gap-4"
+            onSubmit={formik.handleSubmit}
           >
-            Sign In
-          </button>
-        </form>
+            <div className="flex flex-col gap-1 w-full">
+              <label
+                htmlFor="email"
+                className="font-light text-sm text-white manrope"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-white text-sm font-light manrope outline-none"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.email}
+                autoComplete="email"
+                placeholder="your@email.com"
+              />
+              {formik.touched.email && formik.errors.email ? (
+                <div className="text-red-200 text-sm manrope font-light">
+                  {formik.errors.email}
+                </div>
+              ) : null}
             </div>
-            <div className="w-full flex justify-between text-center  text-black mt-10">
-              <span className="text-sm manrope">
-                Don't have an account?{" "}
-                <span className="underline font-semibold">
-                  <Link href="/auth/signup">Sign Up</Link>
-                </span>
-              </span>
-              <span className="text-sm manrope font-normal">
-                  <Link href="/auth/signup">
-                Forgotten your password?{" "}
-                <span className="underline font-semibold">
-               
-                </span>
-                 </Link>
-              </span>
+            <div className="flex flex-col gap-1 w-full">
+              <label
+                htmlFor="password"
+                className="font-light text-xs text-white manrope"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-white font-light manrope outline-none"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.password}
+                  autoComplete="new-password"
+                  placeholder="********"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowPassword((prev: boolean) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeSlashIcon fontSize={12} /> : <EyeIcon />}
+                </button>
+              </div>
+              {formik.touched.password && formik.errors.password ? (
+                <div className="text-red-200 text-xs manrope font-light">
+                  {formik.errors.password}
+                </div>
+              ) : null}
             </div>
-          {/* </>
+            <button
+              type="submit"
+              className=" manrope text-sm font-semibold bg-main text-black  px-4 py-3 mt-2  transition"
+            >
+              Sign In
+            </button>
+          </form>
+        </div>
+        <div className="w-full flex justify-between text-center  text-white mt-10">
+          <span className="text-sm manrope">
+            Don't have an account?{" "}
+            <span className="underline font-semibold">
+              <Link href="/auth/signup">Sign Up</Link>
+            </span>
+          </span>
+          <span className="text-sm manrope font-normal">
+            <Link href="/auth/signup">
+              Forgotten your password?{" "}
+              <span className="underline font-semibold"></span>
+            </Link>
+          </span>
+        </div>
+        {/* </>
         )} */}
-        
+
         {/* Debug section - visible only during development */}
         {process.env.NODE_ENV !== 'production' && debugInfo && (
           <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
@@ -435,4 +436,3 @@ const SignInPage = () => {
 };
 
 export default SignInPage;
-
