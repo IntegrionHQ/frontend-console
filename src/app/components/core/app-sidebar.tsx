@@ -64,10 +64,10 @@ export function AppSidebar() {
     <aside className="h-screen sticky top-0 w-64 shrink-0 border-r bg-white text-gray-900">
       <div className="px-4 py-4 border-b">
         <div className="text-sm uppercase tracking-widest text-gray-500">Integrion</div>
-        <div className="text-lg font-semibold">Control Center</div>
+        <div className="mt-1 text-xs text-gray-400">Beta</div>
       </div>
 
-      <nav className="px-2 py-4 space-y-6 overflow-y-auto">
+      <nav className="px-2 py-4 space-y-6 overflow-y-auto nav uppercase">
         <div>
           <div className="px-2 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">General</div>
           <ul className="space-y-1">
@@ -81,7 +81,7 @@ export function AppSidebar() {
                     className={
                       "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors " +
                       (active
-                        ? "bg-green-50 text-green-700"
+                        ? "bg-[#8059e3]/50 text-[#8059e3] font-bold"
                         : "text-gray-700 hover:bg-gray-100")
                     }
                   >

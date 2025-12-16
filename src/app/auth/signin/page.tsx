@@ -1,28 +1,38 @@
 'use client'
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
 import { RiGithubFill, RiGitlabFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
 import { Loader } from "lucide-react";
-import { Formik, useFormik } from "formik";
+import { useFormik } from "formik";
 import * as Yup from "yup";
 import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
+import { useAuth } from '@/hooks';
+import { ApiError } from '@/lib/api';
+import Image from "next/image";
 const SignInPage = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
-  const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI;
   
   const { setUser } = useUser();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [apiStatus, setApiStatus] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const { login: loginWithService, loginWithGitHub, loading: authLoading } = useAuth();
 
   const router = useRouter();
+  const loginWithGitHubRef = useRef(loginWithGitHub);
+  const setUserRef = useRef(setUser);
+  
+  // Keep refs updated
+  useEffect(() => {
+    loginWithGitHubRef.current = loginWithGitHub;
+    setUserRef.current = setUser;
+  }, [loginWithGitHub, setUser]);
   const SignUpSchema = Yup.object().shape({
       email: Yup.string()
         .email("Invalid email format. Kindly try again")
@@ -41,35 +51,83 @@ const SignInPage = () => {
       password: ""
     },
     validationSchema: SignUpSchema,
-    onSubmit: (values) => {
-      const login = async () => {
-        const response = await fetch(`${backend_uri}/api/v1/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password
-          })
-        });
-        if (!response.ok) {
-         const errorText= await response.text;
-         console.error(errorText)
-        }
-        router.push("/auth/signup/otp")
-      };
-      login();
+    onSubmit: async (values) => {
+      setAuthError(null);
+      const response = await loginWithService({
+        email: values.email,
+        password: values.password
+      });
+      
+      if (response?.data) {
+        const userData = {
+          id: response.data.id,
+          email: response.data.email || "",
+          username: response.data.email || "",
+          githubUsername: response.data.githubUsername || "",
+          primaryEmail: response.data.email || "",
+          gitlabUsername: response.data.gitlabUsername || "",
+          bitbucketUsername: response.data.bitbucketUsername || "",
+          accessToken: "",
+          authCode: "",
+          provider: "email"
+        };
+        setUser(userData);
+        router.push("/dashboard");
+      }
     }
   });
 
   
-  const logObject = (label: string, obj: any) => {
+  const logObject = (label: string, obj: unknown) => {
     const objStr = JSON.stringify(obj, null, 2);
     console.log(`${label}:`, objStr);
     setDebugInfo(prev => `${prev}\n${label}: ${objStr}`);
   };
 
+  
+  const handleGithubAuth = useCallback(async (code: string, providerHint: string | null) => {
+    try {
+      setDebugInfo(prev => `${prev}\nStarting GitHub authentication`);
+      setAuthError(null);
+      setIsAuthenticating(true);
+      
+      const response = await loginWithGitHubRef.current({ authToken: code });
+      
+      if (response?.data?.user) {
+        const user = response.data.user;
+        logObject("User data from API", user);
+        
+        const userData = {
+          id: user.id,
+          email: user.email || user.githubEmail || "",
+          username: user.githubUsername || "",
+          githubUsername: user.githubUsername || "",
+          primaryEmail: user.email || user.githubEmail || "",
+          gitlabUsername: user.gitlabUsername || "",
+          bitbucketUsername: user.bitbucketUsername || "",
+          accessToken: "",
+          authCode: code,
+          provider: providerHint || 'github'
+        };
+        
+        logObject("Setting user data", userData);
+        setUserRef.current(userData);
+        
+        setTimeout(() => {
+          router.push(`/dashboard/projects?provider=${providerHint || 'github'}&authcode=${code}`);
+        }, 500);
+      } else {
+        setAuthError("Invalid user data received");
+      }
+    } catch (error) {
+      const errMsg = error instanceof ApiError ? error.message : (error instanceof Error ? error.message : 'Unknown error');
+      setDebugInfo(prev => `${prev}\nAuthentication error: ${errMsg}`);
+      setAuthError(`Error: ${errMsg}`);
+      console.error('[GitHub Sign-In] Error:', errMsg);
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [router]);
   
   useEffect(() => {
     // Determine provider from URL or last clicked button
@@ -82,148 +140,10 @@ const SignInPage = () => {
         setDebugInfo(prev => `${prev}\nProvider '${providerHint}' is not currently handled in this flow.`)
         return;
       }
-      setIsAuthenticating(true);
       setDebugInfo("Starting authentication process...");
-      
-      const handleGithubAuth = async () => {
-        try {
-          setDebugInfo(prev => `${prev}\nStarting GitHub authentication`);
-          
-          // Construct and log the full request URL (masked for safety)
-          const requestUrl = `${backend_uri}/api/v1/registerWithGitHub?authToken=${authCode}`;
-          const safeRequestUrl = requestUrl.replace(/authToken=[^&]+/i, 'authToken=***');
-          setDebugInfo(prev => `${prev}\nRequest URL: ${safeRequestUrl}`);
-          console.log('[GitHub Sign-In] Request:', safeRequestUrl);
-
-          // Fetch data from the API
-          const response = await fetch(requestUrl);
-          const status = response.status;
-          setApiStatus(status);
-          console.log('[GitHub Sign-In] Status:', status);
-
-          // Always read the body as text so we can log regardless of status
-          const responseText = await response.text().catch(() => '');
-          console.log('[GitHub Sign-In] Raw:', responseText);
-          setDebugInfo(prev => `${prev}\nRaw response: ${responseText.substring(0, 200)}...`);
-
-          if (!response.ok) {
-            setDebugInfo(prev => `${prev}\nAPI Error: ${status} - ${responseText}`);
-            console.error('[GitHub Sign-In] Error body:', responseText);
-            if (status === 500) {
-              setAuthError("Server error (500): The authentication server encountered an error. Please try again later or contact support.");
-            } else {
-              setAuthError(`Authentication failed: ${status} - ${responseText}`);
-            }
-            return;
-          }
-          
-          // Then parse it as JSON
-          let data;
-          try {
-            data = JSON.parse(responseText);
-            logObject("Parsed data", data);
-          } catch (e) {
-            setDebugInfo(prev => `${prev}\nJSON parse error: ${e instanceof Error ? e.message : 'Unknown error'}`);
-            setAuthError("Invalid response format");
-            return;
-          }
-
-          // Dev-friendly console logging with sensitive fields masked
-          try {
-            const redact = (obj: any) => JSON.parse(
-              JSON.stringify(obj, (key, value) => {
-                if (typeof value === 'string') {
-                  const k = key.toLowerCase();
-                  if (k.includes('token') || k.includes('auth')) return '***';
-                }
-                return value;
-              })
-            );
-            // Also mask tokens if present at top level
-            const masked = redact(data);
-            // Collapse the group by default to reduce noise
-            console.groupCollapsed('[GitHub Sign-In] Backend response');
-            console.log('Request:', safeRequestUrl);
-            console.log('Status:', status);
-            console.log('Parsed:', masked);
-            console.groupEnd();
-          } catch {}
-          
-          
-          if (data && data.user && data.user.id) {
-            logObject("User data from API", data.user);
-            console.log(data.user);
-            
-            const userData = {
-              id: data.user.id,
-              email: data.user.primaryEmail || data.user.githubEmail || "",
-              username: data?.user.githubUsername || "",
-              githubUsername: data.user.githubUsername || "",
-              primaryEmail: data.user.primaryEmail || "",
-              gitlabUsername: data.user.gitlabUsername || "",
-              bitbucketUsername: data.user.bitbucketUsername || "",
-              accessToken: data.user.githubAccessToken || ""
-            };
-            
-            logObject("Setting user data", userData);
-            
-           
-            setUser({...userData,authCode,provider: providerHint || 'github'});
-
-            // Pre-warm GitHub repositories cache for modal (sessionStorage + 5min TTL)
-            try {
-              const cacheKey = `${userData.githubUsername || ''}:${userData.accessToken || ''}`
-              const storageKey = `gh:repos:${cacheKey}`
-              const reposUrl = `${backend_uri}/api/v1/getUserGitHubRepositories?provider=${providerHint || 'github'}&authToken=${authCode}&access_token=${userData.accessToken}&username=${userData.githubUsername}`
-              fetch(reposUrl)
-                .then(async (res) => {
-                  if (!res.ok) return
-                  const list = await res.json()
-                  const arr = Array.isArray(list) ? list : []
-                  try {
-                    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), repos: arr }))
-                  } catch {}
-                })
-                .catch(() => {})
-            } catch {}
-            
-           
-            setTimeout(() => {
-              const storedUser = localStorage.getItem('user');
-              setDebugInfo(prev => `${prev}\nUser data in localStorage: ${storedUser}`);
-              if (storedUser) {
-                const parsedUser = JSON.parse(storedUser);
-                logObject("Parsed user from localStorage", parsedUser);
-                if(parsedUser )
-                {
-                  router.push(`/dashboard/projects?provider=${providerHint || 'github'}&authcode=${authCode}`)
-                }
-              } else {
-                setDebugInfo(prev => `${prev}\nNo user data found in localStorage`);
-              }
-              
-            }, 500);
-
-
-          } else {
-            setDebugInfo(prev => `${prev}\nInvalid user data structure`);
-            setAuthError("Invalid user data received");
-          }
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : 'Unknown error'
-          setDebugInfo(prev => `${prev}\nAuthentication error: ${errMsg}`);
-          setAuthError(`Error: ${errMsg}`);
-          console.error('[GitHub Sign-In] Network/Unhandled error:', errMsg);
-        } finally {
-          setIsAuthenticating(false);
-        }
-      };
-      
-      // Default to GitHub handler when a code is present and provider is unknown
-      handleGithubAuth();
-    
+      handleGithubAuth(authCode, providerHint || null);
     }
-  }, [ provider,authCode,router]);
+  }, [provider, authCode, isAuthenticating, handleGithubAuth]);
 
  
   const handleGithubLogin = () => {
@@ -247,188 +167,165 @@ const SignInPage = () => {
   };
 
  
-  const renderServerStatus = () => {
-    if (apiStatus === 500) {
-      return (
-        <div className="w-full mt-2 text-sm text-gray-600">
-          <p>The authentication server is currently experiencing issues. This could be due to:</p>
-          <ul className="list-disc pl-5 mt-2">
-            <li>Temporary server outage</li>
-            <li>Maintenance in progress</li>
-            <li>Invalid authentication token</li>
-          </ul>
-          <p className="mt-2">You can try:</p>
-          <ul className="list-disc pl-5 mt-2">
-            <li>Logging in again in a few minutes</li>
-            <li>Contacting support if the issue persists</li>
-          </ul>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
-    <main className="bg-white flex min-h-screen justify-center items-center max-w-[1920px] ">
-   
-      <div className="w-full  flex flex-col justify-start items-start   rounded-lg h-full p-10 max-w-[600px]">
-        <div>
-          <h1 className="hemming text-2xl font-normal text-black jb  tracking-wider">Sign In to Integrion</h1>
-        </div>
-        
-        {/* {authError && (
-          <div className="w-full mt-4 p-3 bg-red-100 text-red-700 rounded">
-            {authError}
-            {renderServerStatus()}
+    <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
+      <div className="w-full h-screen grid lg:grid-cols-[1fr_0.6fr] items-stretch">
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-black p-10 shadow-2xl">
+          <div className="absolute inset-0 opacity-20">
+            <Image src="/bg-g.jpg" alt="Decorative background" fill className="object-cover" />
           </div>
-        )} */}
-        
-        {/* {isAuthenticating ? (
-          <div className="w-full mt-10 text-center">
-            <p>Authenticating, please wait...</p>
-          </div>
-        ) : (
-          <> */}
-            <div className=" grid grid-cols-2 gap-4 w-full justify-center items-center mt-5">
-              <button 
-                className="w-full hemming text-md font-medium border-[0.01px] border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-gray-200 hover:text-black transition" 
-                onClick={handleGithubLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                  {isAuthenticating && provider == "github" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGithubFill size={20}/>
-                  Github
-                    </>
-                  )}
-                 
-                </span>
-              </button>
-              <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
-                onClick={handleGitLabLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                 {isAuthenticating && provider == "gitlab" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGitlabFill size={20}/>
-                  Gitlab
-                    </>
-                  )}
-                </span>
-              </button>
-              <button 
-                className="w-full hemming text-md font-medium border border-gray-300 text-black  px-3 py-2 mt-2 hover:bg-black hover:text-black transition" 
-                onClick={handleGitLabLogin}
-              >
-                <span className="flex justify-center items-center gap-4 font-normal manrope">
-                {isAuthenticating && provider == "bitbucket" ? (
-                    <Loader className="animate-spin" size={15} />
-                  ):(
-                    <>
-                     <RiGitlabFill size={20}/>
-                  Bitbucket
-                    </>
-                  )}
-                </span>
-              </button>
+          <div className="relative flex h-full flex-col justify-between">
+            <div className="space-y-4">
+              <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-slate-200">
+                Integrion
+              </p>
+              <h1 className="hemming text-4xl font-semibold leading-tight text-white">Sign in and ship faster</h1>
+              <p className="manrope text-slate-200 text-base max-w-lg">
+                Centralize your repos, track pull requests, and keep delivery flowing with a focused workspace.
+              </p>
             </div>
-<div className="flex justify-center items-center w-full mt-5">
-           <span className="flex justify-center items-center text-black manrope">
-            <hr className="w-1/4 h-1/4 bg-black"/>
-            or
-            <hr className="w-1/4 h-1/4 bg-black"/>
-           </span>
+            <div className="mt-12 grid grid-cols-2 gap-4 text-sm text-slate-200">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg">
+                <p className="text-xs uppercase tracking-wide text-slate-300">GitHub first</p>
+                <p className="mt-2 text-lg font-semibold">OAuth-ready</p>
+                <p className="text-sm text-slate-300">One-click sign-in and synced repos.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg">
+                <p className="text-xs uppercase tracking-wide text-slate-300">Secure</p>
+                <p className="mt-2 text-lg font-semibold">Least privilege</p>
+                <p className="text-sm text-slate-300">Tokens stay scoped to the tasks you run.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white text-slate-900 shadow-2xl p-8 sm:p-10 flex flex-col justify-center gap-6 overflow-y-auto">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-500 manrope">Welcome back</p>
+              <h2 className="hemming text-2xl font-semibold text-slate-900">Sign in to Integrion</h2>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">v1.0</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-300 hover:shadow-sm"
+              onClick={handleGithubLogin}
+            >
+              {isAuthenticating && provider === "github" ? (
+                <Loader className="animate-spin" size={16} />
+              ) : (
+                <RiGithubFill size={18} />
+              )}
+              GitHub
+            </button>
+
+            <button
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-300 hover:shadow-sm"
+              onClick={handleGitLabLogin}
+            >
+              {isAuthenticating && provider === "gitlab" ? (
+                <Loader className="animate-spin" size={16} />
+              ) : (
+                <RiGitlabFill size={18} />
+              )}
+              GitLab
+            </button>
+
+            <button
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-300 hover:shadow-sm"
+              onClick={handleGitLabLogin}
+            >
+              {isAuthenticating && provider === "bitbucket" ? (
+                <Loader className="animate-spin" size={16} />
+              ) : (
+                <RiGitlabFill size={18} />
+              )}
+              Bitbucket
+            </button>
+          </div>
+
+          <div className="relative flex items-center gap-3 text-xs text-slate-500 uppercase tracking-[0.2em]">
+            <span className="h-px flex-1 bg-slate-200" />
+            Or continue with email
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <form className="flex flex-col gap-4" onSubmit={formik.handleSubmit}>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="email" className="text-sm font-medium text-slate-800 manrope">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.email}
+                autoComplete="email"
+                placeholder="you@example.com"
+              />
+              {formik.touched.email && formik.errors.email ? (
+                <div className="text-sm text-red-600 manrope">{formik.errors.email}</div>
+              ) : null}
             </div>
 
-            <div className="w-full">
-              <form className="w-full mt-6 flex flex-col gap-4" onSubmit={formik.handleSubmit}>
-          <div className="flex flex-col gap-1 w-full">
-            <label htmlFor="email" className="font-light text-sm text-black manrope">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className="bg-transparent border-[0.01px] w-full  px-3 py-2 text-black text-sm font-light manrope outline-none"
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              value={formik.values.email}
-              autoComplete="email"
-              placeholder="your@email.com"
-            />
-            {formik.touched.email && formik.errors.email ? (
-              <div className="text-red-200 text-sm manrope font-light">{formik.errors.email}</div>
-            ) : null}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="password" className="text-sm font-medium text-slate-800 manrope">Password</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 pr-12 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.password}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                  onClick={() => setShowPassword((prev: boolean) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+              </div>
+              {formik.touched.password && formik.errors.password ? (
+                <div className="text-sm text-red-600 manrope">{formik.errors.password}</div>
+              ) : null}
+            </div>
+
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            >
+              {authLoading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="flex flex-col gap-3 text-sm text-slate-600">
+            <div className="flex items-center justify-between">
+              <span className="manrope">Don't have an account?</span>
+              <Link href="/auth/signup" className="font-semibold text-slate-900 hover:underline">Create one</Link>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="manrope">Forgot your password?</span>
+              <Link href="/auth/signup" className="font-semibold text-slate-900 hover:underline">Recover access</Link>
+            </div>
           </div>
-          <div className="flex flex-col gap-1 w-full">
-        <label htmlFor="password" className="font-light text-xs text-black manrope">Password</label>
-        <div className="relative">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            className=" bg-transparent border-[0.01px] px-3 py-2 w-full  pr-10 text-black font-light manrope outline-none"
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            value={formik.values.password}
-            autoComplete="new-password"
-            placeholder="********"
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2"
-            onClick={() => setShowPassword((prev:boolean) => !prev)}
-            tabIndex={-1}
-          >
-            {showPassword ? (
-              <EyeSlashIcon fontSize={12}/>
-            ) : (
-              <EyeIcon/>
-            )}
-          </button>
+
+          {authError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {authError}
+            </div>
+          )}
         </div>
-        {formik.touched.password && formik.errors.password ? (
-          <div className="text-red-200 text-xs manrope font-light">{formik.errors.password}</div>
-        ) : null}
-      </div>
-          <button
-            type="submit"
-            className=" manrope text-sm font-semibold bg-black text-white  px-4 py-3 mt-2  transition"
-          >
-            Sign In
-          </button>
-        </form>
-            </div>
-            <div className="w-full flex justify-between text-center  text-black mt-10">
-              <span className="text-sm manrope">
-                Don't have an account?{" "}
-                <span className="underline font-semibold">
-                  <Link href="/auth/signup">Sign Up</Link>
-                </span>
-              </span>
-              <span className="text-sm manrope font-normal">
-                  <Link href="/auth/signup">
-                Forgotten your password?{" "}
-                <span className="underline font-semibold">
-               
-                </span>
-                 </Link>
-              </span>
-            </div>
-          {/* </>
-        )} */}
-        
-        {/* Debug section - visible only during development */}
-        {process.env.NODE_ENV !== 'production' && debugInfo && (
-          <div className="w-full mt-6 p-3 bg-gray-100 text-xs font-mono overflow-auto max-h-60">
-            <h4 className="font-bold mb-2">Debug Information:</h4>
-            <pre>{debugInfo}</pre>
-          </div>
-        )}
       </div>
     </main>
   );

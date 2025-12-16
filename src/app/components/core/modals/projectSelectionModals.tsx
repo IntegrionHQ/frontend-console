@@ -1,7 +1,10 @@
 "use client"
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser } from '@/app/store/global/context/userContext'
 import { Loader2, RotateCcw } from 'lucide-react'
+import { useGitHub } from '@/hooks'
+import { projectService } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 
 interface ProjectSelectionModalProps {
   onClose: () => void
@@ -15,99 +18,48 @@ type Repo = {
   full_name?: string
 }
 
-// Simple in-memory cache for the session
-const reposCache = new Map<string, Repo[]>()
-
 const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose, onCreated }) => {
   const { user } = useUser()
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URI
+  const { getRepositories, loading: githubLoading, error: githubError } = useGitHub()
   const [repos, setRepos] = useState<Repo[] | null>(null)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<string>("")
-  const abortRef = useRef<AbortController | null>(null)
 
   const [projectName, setProjectName] = useState("")
   const [projectDescription, setProjectDescription] = useState("")
   const [projectUrl, setProjectUrl] = useState("")
   const [projectBranch, setProjectBranch] = useState("main")
 
-  // Simple repo loading - no caching, no pre-warming
-  const loadRepos = async () => {
-    // Early validations with user-friendly errors
-    if (!backend) {
-      setError('Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URI and reload the page.')
-      setRepos([])
-      return
-    }
-    if (!user?.accessToken || !user?.githubUsername) {
-      setError('Missing GitHub credentials. Please sign in again to load your repositories.')
+  const loadRepos = useCallback(async () => {
+    if (!user?.id) {
+      setError('Please sign in to load your repositories.')
       setRepos([])
       return
     }
     
     setError(null)
-    setLoading(true)
-    
-    // Abort any in-flight request
-    if (abortRef.current) {
-      abortRef.current.abort()
-    }
-    const controller = new AbortController()
-    abortRef.current = controller
     
     try {
-      const url = `${backend}/api/v1/getUserGitHubRepositories?provider=${user.provider}&authToken=${user.authCode}&access_token=${user.accessToken}&username=${user.githubUsername}`
-      console.log('[Repos] Loading repositories...')
-      console.log('[Repos] Making request to backend...')
-
-      const res = await fetch(url, { signal: controller.signal })
+      const reposData = await getRepositories()
       
-      console.log('[Repos] Response received, status:', res.status)
-      
-      if (!res.ok) {
-        const text = await res.text()
-        console.log('[Repos] Error response body:', text)
-        throw new Error(text || `Failed to load repos (${res.status})`)
+      if (reposData) {
+        // Flatten the array of arrays into a single array
+        const flatRepos = reposData.flat()
+        setRepos(flatRepos)
+      } else {
+        setRepos([])
       }
-      
-      const data = await res.json()
-      const list = Array.isArray(data) ? data : []
-      console.log('[Repos] Loaded successfully:', list.length, 'repositories')
-      setRepos(list)
-    } catch (e: any) {
-      if (e?.name === 'AbortError') {
-        console.log('[Repos] Request cancelled')
-        return
-      }
-      
-      let msg = e?.message || 'Failed to load repositories'
-      
-      // Detect common CORS errors
-      if (msg.includes('CORS') || msg.includes('Access-Control-Allow-Origin') || 
-          msg.includes('cross-origin') || msg.includes('Not allowed by CORS')) {
-        msg = 'CORS Error: The backend server is not allowing requests from this domain. Please check the backend CORS configuration to allow requests from your frontend URL.'
-      } else if (msg.includes('NetworkError') || msg.includes('fetch')) {
-        msg = 'Network Error: Cannot reach the backend server. Please check if the backend URL is correct and the server is running.'
-      }
-      
-      console.error('[Repos] Error:', msg)
+    } catch (e: unknown) {
+      const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Failed to load repositories')
       setError(msg)
       setRepos([])
-    } finally {
-      console.log('[Repos] Request completed, setting loading to false')
-      setLoading(false)
     }
-  }
+  }, [user?.id, getRepositories])
 
   useEffect(() => {
     loadRepos()
-    return () => {
-      if (abortRef.current) abortRef.current.abort()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, user.provider, user.authCode, user.accessToken, user.githubUsername])
+  }, [loadRepos])
 
   // When a repo is selected, prefill name/url/branch
   const onSelectRepo = (repoName: string) => {
@@ -126,30 +78,29 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!backend || !user?.id) return
+    if (!user?.id) return
     if (!canSubmit) return
     setSubmitting(true)
     setError(null)
+    
     try {
-      const res = await fetch(`${backend}/api/v1/projects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectName,
-          projectDescription,
-          projectUrl,
-          projectBranch,
-          user: user.id,
-        })
+      // Extract repo name from URL if needed
+      const repoUrl = projectUrl.includes('github.com') 
+        ? projectUrl.split('github.com/')[1]?.replace('.git', '') || projectUrl
+        : projectUrl
+      
+      await projectService.create({
+        projectName,
+        projectDescription,
+        projectUrl: repoUrl,
+        projectBranch,
       })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || `Failed to create project (${res.status})`)
-      }
-  onClose()
-  onCreated?.()
-    } catch (e: any) {
-      setError(e?.message || 'Failed to create project')
+      
+      onClose()
+      onCreated?.()
+    } catch (e: unknown) {
+      const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Failed to create project')
+      setError(msg)
     } finally {
       setSubmitting(false)
     }
@@ -166,9 +117,10 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
           <button onClick={onClose} className='text-gray-500 hover:text-gray-800 text-lg' aria-label='Close'>×</button>
         </div>
         <div className='p-4 overflow-auto'>
-          {error ? (
-            <div className='text-sm text-red-600'>{error}</div>
-          ) : (
+          {(error || githubError) ? (
+            <div className='text-sm text-red-600 mb-4'>{error || githubError}</div>
+          ) : null}
+          {!error && !githubError && (
             <form onSubmit={handleSubmit} className='space-y-4'>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
@@ -177,14 +129,14 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                     <button
                       type='button'
                       onClick={loadRepos}
-                      disabled={loading}
+                      disabled={githubLoading}
                       className='text-xs text-gray-500 hover:text-black disabled:opacity-50 flex items-center gap-1'
                       aria-label='Reload repositories'
                     >
                       <RotateCcw className='h-3.5 w-3.5' /> Reload
                     </button>
                   </label>
-                  {loading ? (
+                  {githubLoading ? (
                     <div className='w-full flex items-center gap-2 p-2 border rounded text-sm text-gray-600'>
                       <Loader2 className='h-4 w-4 animate-spin' />
                       Loading repositories...
@@ -255,7 +207,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
 
               <div className='flex justify-end gap-2 pt-2'>
                 <button type='button' onClick={onClose} className='px-4 py-2 text-sm rounded border'>Cancel</button>
-                <button type='submit' disabled={!canSubmit || submitting || loading || !selectedRepo} className='px-4 py-2 text-sm rounded bg-black text-white disabled:opacity-50 hover:bg-neutral-800'>
+                <button type='submit' disabled={!canSubmit || submitting || githubLoading || !selectedRepo} className='px-4 py-2 text-sm rounded bg-black text-white disabled:opacity-50 hover:bg-neutral-800'>
                   {submitting ? 'Creating…' : 'Create Project'}
                 </button>
               </div>
