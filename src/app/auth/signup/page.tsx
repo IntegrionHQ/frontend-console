@@ -56,26 +56,45 @@ const SignUpPage = () => {
     validationSchema: SignUpSchema,
     onSubmit: async (values) => {
       setAuthError(null);
-      const response = await registerWithService({
-        email: values.email,
-        password: values.password
-      });
-      
-      if (response?.data) {
-        const userData = {
-          id: response.data.id,
-          email: response.data.email || "",
-          username: response.data.email || "",
-          githubUsername: response.data.githubUsername || "",
-          primaryEmail: response.data.email || "",
-          gitlabUsername: response.data.gitlabUsername || "",
-          bitbucketUsername: response.data.bitbucketUsername || "",
-          accessToken: "",
-          authCode: "",
-          provider: "email"
-        };
-        setUser(userData);
-        router.push("/auth/signup/otp");
+      try {
+        const response = await registerWithService({
+          email: values.email,
+          password: values.password
+        });
+        
+        if (response?.data) {
+          const userData = {
+            id: response.data.id,
+            email: response.data.email || "",
+            username: response.data.email || response.data.githubUsername || "",
+            githubUsername: response.data.githubUsername || "",
+            primaryEmail: response.data.email || response.data.githubEmail || "",
+            gitlabUsername: response.data.gitlabUsername || "",
+            bitbucketUsername: response.data.bitbucketUsername || "",
+            accessToken: "",
+            authCode: "",
+            provider: "email"
+          };
+          
+          // Only set user and redirect if we have valid user data
+          if (userData.email || userData.username || userData.githubUsername) {
+            setUser(userData);
+            // After successful email registration, redirect to OTP verification
+            // For GitHub OAuth, isVerified will be handled differently
+            if (userData.provider === 'email' && response.data.isVerified === 'false') {
+              router.push('/auth/signup/otp');
+            } else {
+              router.push('/dashboard');
+            }
+          } else {
+            setAuthError("Registration failed. Invalid user data received.");
+          }
+        } else {
+          setAuthError("Registration failed. Please try again.");
+        }
+      } catch (error) {
+        const errMsg = error instanceof ApiError ? error.message : 'Registration failed. Please try again.';
+        setAuthError(errMsg);
       }
     }
   });
@@ -114,13 +133,17 @@ const SignUpPage = () => {
         };
         
         logObject("Setting user data", userData);
-        setUserRef.current(userData);
         
-        setTimeout(() => {
-          router.push(`/dashboard/projects?provider=${providerValue || 'github'}&authcode=${code}`);
-        }, 500);
+        // Only set user and redirect if we have valid user data
+        if (userData.email || userData.username || userData.githubUsername) {
+          setUserRef.current(userData);
+          // Redirect to dashboard after successful authentication
+          router.push('/dashboard');
+        } else {
+          setAuthError("Registration failed. No valid user data received from backend.");
+        }
       } else {
-        setAuthError("Invalid user data received");
+        setAuthError("Invalid user data received from authentication response");
       }
     } catch (error) {
       const errMsg = error instanceof ApiError ? error.message : (error instanceof Error ? error.message : 'Unknown error');

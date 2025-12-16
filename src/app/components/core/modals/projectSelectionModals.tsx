@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api'
 interface ProjectSelectionModalProps {
   onClose: () => void
   onCreated?: () => void
+  onGitHubInstallRequired?: () => void
 }
 
 type Repo = {
@@ -18,7 +19,7 @@ type Repo = {
   full_name?: string
 }
 
-const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose, onCreated }) => {
+const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose, onCreated, onGitHubInstallRequired }) => {
   const { user } = useUser()
   const { getRepositories, loading: githubLoading, error: githubError } = useGitHub()
   const [repos, setRepos] = useState<Repo[] | null>(null)
@@ -52,10 +53,20 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
       }
     } catch (e: unknown) {
       const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Failed to load repositories')
-      setError(msg)
+      
+      // Check if error is due to missing GitHub installation
+      if (msg.includes('no GitHub installation') || msg.includes('GitHub installation') || e instanceof ApiError && e.code === 400) {
+        setError('GitHub App not installed. Please install the app to access your repositories.')
+        // Notify parent to show installation modal
+        if (onGitHubInstallRequired) {
+          onGitHubInstallRequired()
+        }
+      } else {
+        setError(msg)
+      }
       setRepos([])
     }
-  }, [user?.id, getRepositories])
+  }, [user?.id, getRepositories, onGitHubInstallRequired])
 
   useEffect(() => {
     loadRepos()

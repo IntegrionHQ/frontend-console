@@ -53,26 +53,39 @@ const SignInPage = () => {
     validationSchema: SignUpSchema,
     onSubmit: async (values) => {
       setAuthError(null);
-      const response = await loginWithService({
-        email: values.email,
-        password: values.password
-      });
-      
-      if (response?.data) {
-        const userData = {
-          id: response.data.id,
-          email: response.data.email || "",
-          username: response.data.email || "",
-          githubUsername: response.data.githubUsername || "",
-          primaryEmail: response.data.email || "",
-          gitlabUsername: response.data.gitlabUsername || "",
-          bitbucketUsername: response.data.bitbucketUsername || "",
-          accessToken: "",
-          authCode: "",
-          provider: "email"
-        };
-        setUser(userData);
-        router.push("/dashboard");
+      try {
+        const response = await loginWithService({
+          email: values.email,
+          password: values.password
+        });
+        
+        if (response?.data) {
+          const userData = {
+            id: response.data.id,
+            email: response.data.email || "",
+            username: response.data.email || response.data.githubUsername || "",
+            githubUsername: response.data.githubUsername || "",
+            primaryEmail: response.data.email || response.data.githubEmail || "",
+            gitlabUsername: response.data.gitlabUsername || "",
+            bitbucketUsername: response.data.bitbucketUsername || "",
+            accessToken: "",
+            authCode: "",
+            provider: "email"
+          };
+          
+          // Only set user and redirect if we have valid user data
+          if (userData.email || userData.username || userData.githubUsername) {
+            setUser(userData);
+            router.push("/dashboard");
+          } else {
+            setAuthError("Login failed. Invalid user data received.");
+          }
+        } else {
+          setAuthError("Login failed. Please check your credentials.");
+        }
+      } catch (error) {
+        const errMsg = error instanceof ApiError ? error.message : 'Login failed. Please try again.';
+        setAuthError(errMsg);
       }
     }
   });
@@ -111,13 +124,17 @@ const SignInPage = () => {
         };
         
         logObject("Setting user data", userData);
-        setUserRef.current(userData);
         
-        setTimeout(() => {
-          router.push(`/dashboard/projects?provider=${providerHint || 'github'}&authcode=${code}`);
-        }, 500);
+        // Only set user and redirect if we have valid user data
+        if (userData.email || userData.username || userData.githubUsername) {
+          setUserRef.current(userData);
+          // Redirect to dashboard after successful authentication
+          router.push('/dashboard');
+        } else {
+          setAuthError("Authentication failed. No valid user data received from backend.");
+        }
       } else {
-        setAuthError("Invalid user data received");
+        setAuthError("Invalid user data received from authentication response");
       }
     } catch (error) {
       const errMsg = error instanceof ApiError ? error.message : (error instanceof Error ? error.message : 'Unknown error');

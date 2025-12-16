@@ -1,7 +1,10 @@
 import type { ApiResponse } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URI || 'http://localhost:3001';
-const API_PREFIX = '/api/v1';
+// Use Next.js API proxy to avoid CORS issues
+// Disable proxy by default; only use when explicitly enabled
+const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY === 'true';
+const API_BASE_URL = USE_PROXY ? '' : (process.env.NEXT_PUBLIC_BACKEND_URI || 'https://backend-lvlw.onrender.com');
+const API_PREFIX = USE_PROXY ? '/api/proxy' : '/api/v1';
 
 class ApiError extends Error {
   constructor(
@@ -20,6 +23,8 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
   
+  console.log(`[API Client] ${options.method || 'GET'} ${url} (Proxy: ${USE_PROXY})`, options.body ? '(with body)' : '');
+  
   const config: RequestInit = {
     ...options,
     headers: {
@@ -31,8 +36,11 @@ async function request<T>(
 
   const response = await fetch(url, config);
   const data: ApiResponse<T> = await response.json();
+  
+  console.log(`[API Client] Response ${response.status}:`, data);
 
   if (data.code >= 400 || !response.ok) {
+    console.error(`[API Client] Error response:`, data);
     throw new ApiError(
       data.code || response.status,
       data.message || 'Request failed',
