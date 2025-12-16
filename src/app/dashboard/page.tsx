@@ -66,54 +66,54 @@ const DashboardPage = () => {
   }, [authCode, provider, user?.id, isAuthenticating, handleGithubAuth])
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-6 p-6">
       <div className='flex w-full justify-between items-center'>
         <div>
-          <h1 className='hemming font-medium text-2xl'>Projects</h1>
-          <span className='text-sm text-gray-600'>Manage all your projects from here</span>
+          <h1 className='hemming font-semibold text-3xl text-slate-900'>Projects</h1>
+          <span className='text-sm text-slate-600 manrope'>Manage all your projects from here</span>
         </div>
         <button
-          className='bg-[#8059e3]  hover:bg-neutral-800 px-4 py-[11px] rounded-sm text-white flex items-center gap-2'
+          className='bg-slate-900 hover:bg-slate-800 px-5 py-3 rounded-xl text-white flex items-center gap-2 shadow-sm transition-all hover:shadow-md'
           onClick={() => setOpen(true)}
         >
           <Plus className='size-4' />
-          <span className='text-[13px] tracking-wide font-normal'>Create new project</span>
+          <span className='text-sm font-semibold manrope'>Create Project</span>
         </button>
       </div>
 
       {loading ? (
-        <div className='flex flex-col justify-center items-center h-[50vh]'>
-          <Image src="/empty-folder.png" alt="Loading" width={160} height={160} className='w-32 h-32 opacity-60' />
-          <h2 className='hemming font-medium text-lg mt-4'>Loading your projects…</h2>
+        <div className='flex flex-col justify-center items-center h-[60vh] bg-white rounded-2xl border border-slate-200'>
+          <Image src="/empty-folder.png" alt="Loading" width={160} height={160} className='w-32 h-32 opacity-40' />
+          <h2 className='hemming font-medium text-xl mt-6 text-slate-700'>Loading your projects…</h2>
         </div>
       ) : !projects || projects.length === 0 ? (
-        <div className='flex flex-col justify-center items-center h-[50vh]'>
-<Driver
- size="60"
- color="#777777"
-/>          <h2 className='hemming font-medium text-lg mt-4'>You do not have any projects configured yet</h2>
+        <div className='flex flex-col justify-center items-center h-[60vh] bg-white rounded-2xl border border-slate-200'>
+          <Driver size="60" color="#94a3b8" />
+          <h2 className='hemming font-semibold text-xl mt-6 text-slate-900'>No projects yet</h2>
+          <p className='text-sm text-slate-600 manrope mt-2'>Create your first project to get started</p>
           <button
-            className='mt-6 bg-[#8059e3]  hover:bg-neutral-800 px-4 py-2 rounded-sm text-white flex items-center gap-2'
+            className='mt-8 bg-slate-900 hover:bg-slate-800 px-6 py-3 rounded-xl text-white flex items-center gap-2 shadow-sm transition-all hover:shadow-md'
             onClick={() => setOpen(true)}
           >
-            <Plus className='size-4' /> New project
+            <Plus className='size-4' /> <span className='font-semibold'>Create Project</span>
           </button>
         </div>
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
           {projects.map((project) => (
-            <div key={project.id} className='bg-white border p-4 rounded'>
-              <div className='font-medium'>{project.projectName}</div>
+            <div key={project.id} className='bg-white border border-slate-200 p-6 rounded-2xl hover:shadow-lg transition-all hover:border-slate-300 group'>
+              <div className='hemming font-semibold text-lg text-slate-900 group-hover:text-slate-700'>{project.projectName}</div>
               {project.projectDescription && (
-                <div className='text-sm text-gray-600 mt-1'>{project.projectDescription}</div>
+                <div className='text-sm text-slate-600 manrope mt-2'>{project.projectDescription}</div>
               )}
               {project.projectUrl && (
-                <a className='text-sm text-black underline mt-2 inline-block' href={project.projectUrl} target='_blank' rel='noreferrer'>View repository</a>
+                <a className='text-sm text-slate-900 font-semibold hover:underline mt-4 inline-block' href={project.projectUrl} target='_blank' rel='noreferrer'>View repository →</a>
               )}
               {project.projectBranch && (
-                <div className='text-xs text-gray-500 mt-2 flex justify-end items-end'>
-                  <GitBranch className='inline mr-1 mb-0.5 size-4' />
-                   {project.projectBranch}</div>
+                <div className='text-xs text-slate-500 mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 manrope'>
+                  <GitBranch className='size-3.5' />
+                  {project.projectBranch}
+                </div>
               )}
             </div>
           ))}
