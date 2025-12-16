@@ -1,7 +1,6 @@
 import type { ApiResponse } from './types';
 
-// Use Next.js API proxy to avoid CORS issues
-// Disable proxy by default; only use when explicitly enabled
+// Use Next.js API proxy only when explicitly enabled
 const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY === 'true';
 const API_BASE_URL = USE_PROXY ? '' : (process.env.NEXT_PUBLIC_BACKEND_URI || 'https://backend-lvlw.onrender.com');
 const API_PREFIX = USE_PROXY ? '/api/proxy' : '/api/v1';
@@ -35,11 +34,20 @@ async function request<T>(
   };
 
   const response = await fetch(url, config);
-  const data: ApiResponse<T> = await response.json();
+
+  
+  const text = await response.text();
+  let data: ApiResponse<T>;
+  try {
+    data = text ? JSON.parse(text) : { code: response.status, message: response.statusText, data: null, error: null };
+  } catch (e) {
+    console.error('[API Client] Failed to parse JSON:', e, 'Raw response:', text);
+    data = { code: response.status, message: response.statusText || 'Request failed', data: null, error: null } as ApiResponse<T>;
+  }
   
   console.log(`[API Client] Response ${response.status}:`, data);
 
-  if (data.code >= 400 || !response.ok) {
+  if ((data.code ?? response.status) >= 400 || !response.ok) {
     console.error(`[API Client] Error response:`, data);
     throw new ApiError(
       data.code || response.status,
