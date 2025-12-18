@@ -169,7 +169,7 @@ const SignUpPage = () => {
  
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
+    const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITHUB;
     
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
