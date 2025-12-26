@@ -70,7 +70,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
 
   useEffect(() => {
     loadRepos()
-  }, [loadRepos])
+  }, [])
 
   // When a repo is selected, prefill name/url/branch
   const onSelectRepo = (repoName: string) => {

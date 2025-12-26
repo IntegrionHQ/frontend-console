@@ -160,14 +160,15 @@ const SignInPage = () => {
       setDebugInfo("Starting authentication process...");
       handleGithubAuth(authCode, providerHint || null);
     }
-  }, [provider, authCode, isAuthenticating, handleGithubAuth]);
+  }, [provider, authCode]);
 
  
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
     
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
+    //scope=read%3Auser%2Cuser%3Aemail
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=read%3Auser%2Cuser%3Aemail%20user%20repo`;
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
     try { sessionStorage.setItem('lastProvider', 'github'); } catch {}
     window.location.href = githubAuthUrl;

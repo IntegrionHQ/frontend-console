@@ -21,7 +21,7 @@ export function useProjects(userId: string | null) {
     setError(null);
 
     try {
-      const response = await projectService.getByUserId(userId);
+      const response = await projectService.getByUserId();
       setProjects(response.data || []);
     } catch (err) {
       if (err instanceof ApiError) {
