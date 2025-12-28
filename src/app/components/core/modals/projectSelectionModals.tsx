@@ -5,6 +5,7 @@ import { Loader2, RotateCcw } from 'lucide-react'
 import { useGitHub } from '@/hooks'
 import { projectService } from '@/lib/api'
 import { ApiError } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 interface ProjectSelectionModalProps {
   onClose: () => void
@@ -31,7 +32,13 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const [projectDescription, setProjectDescription] = useState("")
   const [projectUrl, setProjectUrl] = useState("")
   const [projectBranch, setProjectBranch] = useState("main")
-
+ const router = useRouter();
+ 
+  useEffect(()=>{
+    if(!user.hasInstallations){
+      router.replace("installations")
+    }
+  },[])
   const loadRepos = useCallback(async () => {
     if (!user?.id) {
       setError('Please sign in to load your repositories.')

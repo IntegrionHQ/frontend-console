@@ -12,11 +12,14 @@ import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useAuth } from '@/hooks';
 import { ApiError } from '@/lib/api';
 import Image from "next/image";
+import crypto from "crypto";
+
 const SignInPage = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
-  
+  const state = crypto.randomBytes(16).toString("hex");
+
   const { setUser } = useUser();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -70,7 +73,8 @@ const SignInPage = () => {
             bitbucketUsername: response.data.bitbucketUsername || "",
             accessToken: "",
             authCode: "",
-            provider: "email"
+            provider: "email",
+            hasInstallations: response.data.hasInstallations || false
           };
           
           // Only set user and redirect if we have valid user data
@@ -120,7 +124,8 @@ const SignInPage = () => {
           bitbucketUsername: user.bitbucketUsername || "",
           accessToken: "",
           authCode: code,
-          provider: providerHint || 'github'
+          provider: providerHint || 'github',
+          hasInstallations: user.hasInstallations || false
         };
         
         logObject("Setting user data", userData);
@@ -168,7 +173,7 @@ const SignInPage = () => {
     const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNIN_REDIRECT_URI_GITHUB;
     
     //scope=read%3Auser%2Cuser%3Aemail
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=read%3Auser%2Cuser%3Aemail%20user%20repo`;
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&state=${state}&scope=read%3Auser%2Cuser%3Aemail%20user%20repo`;
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
     try { sessionStorage.setItem('lastProvider', 'github'); } catch {}
     window.location.href = githubAuthUrl;
