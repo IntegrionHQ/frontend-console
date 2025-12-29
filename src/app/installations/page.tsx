@@ -11,8 +11,8 @@ const InstallationsPage = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
   const installationId = params.get("installation_id");
-  const { user } = useUser()
-  
+  const { setUser, user } = useUser();
+
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const GITHUB_APP_INSTALL_URL = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALL_URL;
@@ -22,9 +22,9 @@ const InstallationsPage = () => {
   const router = useRouter();
   useEffect(() => {
     if (!user?.email && !user?.username && !user?.githubUsername) {
-      router.push('/auth/signin')
+      router.push("/auth/signin");
     }
-  }, [user, router])
+  }, [user, router]);
 
   const logObject = (label: string, obj: unknown) => {
     const objStr = JSON.stringify(obj, null, 2);
@@ -41,17 +41,20 @@ const InstallationsPage = () => {
         const response = await fetch(
           `${backend_uri}/api/v1/auth/github/install`,
           {
+            credentials: "include",
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify({ installationId }),
           }
         );
 
         if (!response.ok) throw new Error(await response.text());
         console.log("Installation ID sent successfully");
-
+        setUser({ ...user, hasInstallations: true });
         console.log(installationId);
-        // router.push("/signin");
+        router.replace("/dashboard");
       } catch (err: any) {
         // setAuthError(err.message);
       } finally {
@@ -69,7 +72,9 @@ const InstallationsPage = () => {
     const providerHint = provider || lastProvider || undefined;
     logObject("Auth parameters", { provider, providerHint, installationId });
 
+    console.log(lastProvider, providerHint, provider, installationId);
     if (installationId && !isAuthenticating) {
+      console.log("We are here?");
       if (providerHint && providerHint !== "github") {
         setDebugInfo(
           (prev) =>
@@ -77,6 +82,7 @@ const InstallationsPage = () => {
         );
         return;
       }
+      console.log("Hmmmm");
       setDebugInfo("Starting authentication process...");
       processGithubInstallation(installationId, providerHint || null);
     }
