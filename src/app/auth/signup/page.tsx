@@ -12,6 +12,7 @@ import { EyeIcon,EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useAuth } from '@/hooks';
 import { ApiError } from '@/lib/api';
 import Image from "next/image";
+import crypto from "crypto";
 
 const SignUpPage = () => {
   const params = useSearchParams();
@@ -24,7 +25,7 @@ const SignUpPage = () => {
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { register: registerWithService, registerWithGitHub, loading: authLoading } = useAuth();
-
+const state = crypto.randomBytes(16).toString("hex");
   const router = useRouter();
   const registerWithGitHubRef = useRef(registerWithGitHub);
   const setUserRef = useRef(setUser);
@@ -73,7 +74,8 @@ const SignUpPage = () => {
             bitbucketUsername: response.data.bitbucketUsername || "",
             accessToken: "",
             authCode: "",
-            provider: "email"
+            provider: "email",
+            hasInstallations: response.data.hasInstallations || false
           };
           
           // Only set user and redirect if we have valid user data
@@ -129,7 +131,8 @@ const SignUpPage = () => {
           bitbucketUsername: user.bitbucketUsername || "",
           accessToken: "",
           authCode: code,
-          provider: providerValue || 'github'
+          provider: providerValue || 'github',
+          hasInstallations: user.hasInstallations || false
         };
         
         logObject("Setting user data", userData);
@@ -164,14 +167,14 @@ const SignUpPage = () => {
         handleGithubAuth(authCode, provider);
       }
     }
-  }, [provider, authCode, isAuthenticating, handleGithubAuth]);
+  }, [provider, authCode]);
 
  
   const handleGithubLogin = () => {
     const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     const REDIRECT_URI = process.env.NEXT_PUBLIC_SIGNUP_REDIRECT_URI_GITHUB;
     
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user%20repo`;
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&state=${state}&scope=read%3Auser%2Cuser%3Aemail%20user%20repo`;
     setDebugInfo(`GitHub Auth URL: ${githubAuthUrl}`);
     window.location.href = githubAuthUrl;
   };

@@ -12,6 +12,7 @@ interface UserContextType {
   bitbucketUsername?: string;
   authCode:string
   provider:string
+  hasInstallations: boolean
 }
 
 interface UserContextValue {
@@ -32,7 +33,8 @@ const defaultUser: UserContextType = {
   accessToken: "",
   bitbucketUsername: "",
   authCode:"",
-  provider:""
+  provider:"",
+  hasInstallations:false
 };
 
 export const UserContext = createContext<UserContextValue | undefined>(undefined);

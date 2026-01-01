@@ -21,9 +21,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
-  
-  console.log(`[API Client] ${options.method || 'GET'} ${url} (Proxy: ${USE_PROXY})`, options.body ? '(with body)' : '');
-  
+
   const config: RequestInit = {
     ...options,
     headers: {
@@ -35,20 +33,41 @@ async function request<T>(
 
   const response = await fetch(url, config);
 
-  
+  if (response.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/signin';
+    }
+
+    throw new ApiError(
+      401,
+      'Unauthorized',
+      { name: 'AuthError', details: 'Session expired or not authenticated' }
+    );
+  }
+
   const text = await response.text();
   let data: ApiResponse<T>;
+
   try {
-    data = text ? JSON.parse(text) : { code: response.status, message: response.statusText, data: null, error: null };
+    data = text
+      ? JSON.parse(text)
+      : {
+          code: response.status,
+          message: response.statusText,
+          data: null,
+          error: null,
+        };
   } catch (e) {
     console.error('[API Client] Failed to parse JSON:', e, 'Raw response:', text);
-    data = { code: response.status, message: response.statusText || 'Request failed', data: null, error: null } as ApiResponse<T>;
+    data = {
+      code: response.status,
+      message: response.statusText || 'Request failed',
+      data: null,
+      error: null,
+    } as ApiResponse<T>;
   }
-  
-  console.log(`[API Client] Response ${response.status}:`, data);
 
   if ((data.code ?? response.status) >= 400 || !response.ok) {
-    console.error(`[API Client] Error response:`, data);
     throw new ApiError(
       data.code || response.status,
       data.message || 'Request failed',
@@ -58,6 +77,7 @@ async function request<T>(
 
   return data;
 }
+
 
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),

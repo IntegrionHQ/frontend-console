@@ -22,6 +22,7 @@ export interface User {
   isVerified: string;
   createdAt: number;
   updatedAt: number | null;
+  hasInstallations: boolean | null
 }
 
 export interface GitHubAuthResponse {

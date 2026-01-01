@@ -26,8 +26,8 @@ export const projectService = {
     return api.delete<Project>(`/projects/${projectId}`);
   },
 
-  getByUserId: async (userId: string): Promise<ApiResponse<Project[]>> => {
-    return api.get<Project[]>(`/users/${userId}/projects`);
+  getByUserId: async (): Promise<ApiResponse<Project[]>> => {
+    return api.get<Project[]>(`/projects`);
   },
 };
 
