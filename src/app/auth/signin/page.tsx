@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api';
 import Image from "next/image";
 import crypto from "crypto";
 
-const SignInPage = () => {
+const SignInContent = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
@@ -351,6 +351,18 @@ const SignInPage = () => {
         </div>
       </div>
     </main>
+  );
+};
+
+const SignInPage = () => {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
+        <Loader className="animate-spin" size={32} />
+      </main>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 };
 

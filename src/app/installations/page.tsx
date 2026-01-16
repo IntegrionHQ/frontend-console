@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { RiGithubFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
 import { Loader } from "lucide-react";
 import crypto from "crypto";
 import { useUser } from "../store/global/context/userContext";
-const InstallationsPage = () => {
+const InstallationsContent= () => {
   const state = crypto.randomBytes(16).toString("hex");
   const params = useSearchParams();
   const provider = params.get("provider");
@@ -133,6 +133,21 @@ const InstallationsPage = () => {
       </div>
     </main>
   );
+};
+
+
+const InstallationsPage = () => {
+  return (
+    <Suspense
+    fallback={
+       <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
+                   <Loader className="animate-spin" size={32} />
+                 </main>
+    }
+    >
+      <InstallationsContent/>
+    </Suspense>
+  )
 };
 
 export default InstallationsPage;
