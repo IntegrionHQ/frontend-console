@@ -173,7 +173,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                           <>
                             <option value='' disabled>Select from your GitHub repositories</option>
                             {(repos || []).map((r) => (
-                              <option key={r.name} value={r.name}>{r.name}</option>
+                              <option key={r?.name} value={r?.name}>{r?.name}</option>
                             ))}
                           </>
                         )}
