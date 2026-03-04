@@ -10,10 +10,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const crumbs = React.useMemo(() => {
     let parts = pathname.split('/').filter(Boolean)
-    if (parts[0] === 'dashboard') parts = parts.slice(1)
+    // Avoid duplicating the root 'Dashboard' crumb
+    if (parts[0] === 'dashboard') {
+      parts = parts.slice(1)
+    }
     const acc: { href: string; label: string }[] = []
     parts.forEach((seg, i) => {
-      const href = '/dashboard/' + parts.slice(0, i + 1).join('/')
+      const href = '/dashboard' + (i >= 0 ? '/' + parts.slice(0, i + 1).join('/') : '')
       const label = seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')
       acc.push({ href, label })
     })
@@ -21,27 +24,29 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   }, [pathname])
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="flex">
         <AppSidebar />
         <main className="flex-1 min-w-0">
-          <header className="sticky top-0 z-10 flex justify-between h-12 items-center border-b border-gray-200 bg-white/90 backdrop-blur-sm px-6">
-            <nav className="flex items-center gap-2 nav text-xs uppercase tracking-wide text-gray-400">
-              <Link href="/dashboard" className="hover:text-black transition-colors">Dashboard</Link>
+          <header className="sticky top-0 z-10 flex justify-between h-16 items-center border-b border-slate-200 bg-white/90 backdrop-blur-sm px-6 shadow-sm">
+            <nav className="text-sm text-slate-600 flex items-center gap-2 manrope">
+              <Link href="/dashboard" className="hover:text-slate-900 font-medium transition-colors">Dashboard</Link>
               {crumbs.map((c, i) => (
                 <React.Fragment key={c.href}>
-                  <span className="text-gray-300">/</span>
+                  <span className="text-slate-300">/</span>
                   {i === crumbs.length - 1 ? (
-                    <span className="text-black font-medium">{c.label}</span>
+                    <span className="text-slate-900 font-semibold">{c.label}</span>
                   ) : (
-                    <Link href={c.href} className="hover:text-black transition-colors">{c.label}</Link>
+                    <Link href={c.href} className="hover:text-slate-900 font-medium transition-colors">{c.label}</Link>
                   )}
                 </React.Fragment>
               ))}
             </nav>
-            <SystemOperational />
+            <div className='flex justify-center items-center'>
+              <SystemOperational/>
+            </div>
           </header>
-          <div className="p-5">
+          <div className="p-4">
             {children}
           </div>
         </main>
