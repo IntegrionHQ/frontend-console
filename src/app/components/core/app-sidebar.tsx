@@ -10,12 +10,11 @@ import {
   Server, 
   GitPullRequest, 
   FileBarChart2, 
-  Settings, 
+  LogOut,
   BookOpen 
 } from "lucide-react"
 import { useUser } from "@/app/store/global/context/userContext"
 
-// Sample data preserved and simplified for the custom sidebar
 const nav = {
   main: [
     { title: "Dashboard", href: "/dashboard", icon: LayoutGrid },
@@ -42,9 +41,7 @@ export function AppSidebar() {
 
   const handleSignOut = () => {
     try {
-      // Clear user context + localStorage
       clearUser()
-      // Clear any session repo caches
       try {
         const keys: string[] = []
         for (let i = 0; i < sessionStorage.length; i++) {
@@ -61,16 +58,18 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="h-screen sticky top-0 w-64 shrink-0 border-r border-slate-200 bg-white text-slate-900">
-      <div className="px-6 py-5 border-b border-slate-200">
-        <div className="hemming text-xl font-semibold text-slate-900">Integrion</div>
-        <div className="mt-1 text-xs text-slate-500 manrope">Beta Release</div>
+    <aside className="h-screen sticky top-0 w-60 shrink-0 border-r border-gray-200 bg-white flex flex-col">
+      {/* Brand */}
+      <div className="px-5 py-4 border-b border-gray-200">
+        <span className="nav text-xs uppercase tracking-widest text-black font-bold">[ INTEGRION ]</span>
+        <div className="mt-0.5 text-[10px] nav uppercase tracking-widest text-gray-400">Beta</div>
       </div>
 
-      <nav className="px-3 py-4 space-y-6 overflow-y-auto">
+      {/* Navigation */}
+      <nav className="px-3 py-4 flex-1 overflow-y-auto space-y-5">
         <div>
-          <div className="px-3 mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 manrope">General</div>
-          <ul className="space-y-1">
+          <div className="px-2 mb-2 nav text-[10px] uppercase tracking-widest text-gray-400">General</div>
+          <ul className="space-y-0.5">
             {nav.main.map((item) => {
               const Icon = item.icon
               const active = pathname === item.href
@@ -79,14 +78,14 @@ export function AppSidebar() {
                   <Link
                     href={item.href}
                     className={
-                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all manrope " +
+                      "flex items-center gap-2.5 px-2.5 py-2 text-sm transition-all duration-150 " +
                       (active
-                        ? "bg-slate-900 text-white font-semibold shadow-sm"
-                        : "text-slate-700 hover:bg-slate-100 font-medium")
+                        ? "bg-black text-white font-medium shadow-[2px_2px_0px_0px] shadow-gray-300"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-black")
                     }
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="nav text-xs uppercase tracking-wide">{item.title}</span>
                   </Link>
                 </li>
               )
@@ -95,14 +94,14 @@ export function AppSidebar() {
         </div>
 
         <div>
-          <div className="px-3 mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 manrope">
-            <BookOpen className="h-3.5 w-3.5" /> Documentation
+          <div className="px-2 mb-2 nav text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+            <BookOpen className="h-3 w-3" /> Docs
           </div>
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {nav.docs.map((item) => (
               <li key={item.title}>
-                <Link href={item.href} className="block rounded-xl px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100 font-medium manrope transition-all">
-                  {item.title}
+                <Link href={item.href} className="block px-2.5 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-black transition-all duration-150">
+                  <span className="nav text-xs uppercase tracking-wide">{item.title}</span>
                 </Link>
               </li>
             ))}
@@ -110,19 +109,16 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      <div className="mt-auto px-4 py-4 border-t border-slate-200 text-sm">
-        <div className="font-semibold text-slate-900 hemming">{displayName}</div>
-        {displayEmail ? (
-          <div className="text-slate-500 text-xs manrope mt-0.5">{displayEmail}</div>
-        ) : null}
-        <div className="mt-3 flex gap-2">
-          <Link href="/auth/signin" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 font-medium manrope transition-all">
-            <Settings className="h-3.5 w-3.5" /> Account
-          </Link>
-          <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs hover:bg-slate-50 font-medium manrope transition-all">
-            Sign out
-          </button>
-        </div>
+      {/* User Footer */}
+      <div className="px-4 py-3 border-t border-gray-200">
+        <div className="text-sm font-semibold text-black truncate">{displayName}</div>
+        {displayEmail && <div className="text-xs text-gray-400 font-aeonik-light truncate mt-0.5">{displayEmail}</div>}
+        <button
+          onClick={handleSignOut}
+          className="mt-2.5 w-full flex items-center justify-center gap-2 border border-gray-200 bg-white px-3 py-1.5 text-xs nav uppercase tracking-wide text-gray-600 transition-all hover:border-black hover:text-black hover:shadow-[2px_2px_0px_0px] hover:shadow-gray-300"
+        >
+          <LogOut className="h-3 w-3" /> Sign Out
+        </button>
       </div>
     </aside>
   )
