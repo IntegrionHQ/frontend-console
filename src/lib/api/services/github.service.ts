@@ -5,6 +5,10 @@ import type {
   GitHubBranch,
 } from '../types';
 
+const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
+const API_BASE_URL = USE_PROXY ? '' : (process.env.NEXT_PUBLIC_BACKEND_URI || 'https://backend-lvlw.onrender.com');
+const API_PREFIX = USE_PROXY ? '/api/proxy' : '/api/v1';
+
 export const githubService = {
   getRepositories: async (): Promise<ApiResponse<GitHubRepository[][]>> => {
     return api.get<GitHubRepository[][]>('/github/repos');
@@ -22,10 +26,8 @@ export const githubService = {
     repo: string
   ): Promise<string> => {
     const endpoint = `/github/repo-content?accessToken=${encodeURIComponent(accessToken)}&username=${encodeURIComponent(username)}&repo=${encodeURIComponent(repo)}`;
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URI || 'http://localhost:3001'}/api/v1${endpoint}`,
-      { credentials: 'include' }
-    );
+    const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
+    const response = await fetch(url, { credentials: 'include' });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch repository content: ${response.statusText}`);
@@ -34,4 +36,3 @@ export const githubService = {
     return response.text();
   },
 };
-

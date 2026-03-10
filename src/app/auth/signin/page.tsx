@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from '@/app/store/global/context/userContext';
@@ -11,13 +11,18 @@ import * as Yup from "yup";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useAuth } from '@/hooks';
 import { ApiError } from '@/lib/api';
-import crypto from "crypto";
+const generateState = () => {
+  const cryptoObj = typeof globalThis !== "undefined" ? (globalThis.crypto as Crypto | undefined) : undefined;
+  return cryptoObj?.randomUUID
+    ? cryptoObj.randomUUID()
+    : `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+};
 
 const SignInContent = () => {
   const params = useSearchParams();
   const provider = params.get("provider");
   const authCode = params.get("code");
-  const state = crypto.randomBytes(16).toString("hex");
+  const state = useMemo(() => generateState(), []);
 
   const { setUser } = useUser();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -25,6 +30,10 @@ const SignInContent = () => {
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { login: loginWithService, loginWithGitHub, loading: authLoading } = useAuth();
+  const resolveUser = (data: unknown) => {
+    const maybe = data as { user?: unknown } | null | undefined;
+    return maybe && typeof maybe === "object" && "user" in maybe ? maybe.user : data;
+  };
 
   const router = useRouter();
   const loginWithGitHubRef = useRef(loginWithGitHub);
@@ -58,19 +67,20 @@ const SignInContent = () => {
           email: values.email,
           password: values.password
         });
-        if (response?.data) {
+        const rawUser = resolveUser(response?.data) as any;
+        if (rawUser) {
           const userData = {
-            id: response.data.id,
-            email: response.data.email || "",
-            username: response.data.email || response.data.githubUsername || "",
-            githubUsername: response.data.githubUsername || "",
-            primaryEmail: response.data.email || response.data.githubEmail || "",
-            gitlabUsername: response.data.gitlabUsername || "",
-            bitbucketUsername: response.data.bitbucketUsername || "",
+            id: rawUser.id,
+            email: rawUser.email || "",
+            username: rawUser.email || rawUser.githubUsername || "",
+            githubUsername: rawUser.githubUsername || "",
+            primaryEmail: rawUser.email || rawUser.githubEmail || "",
+            gitlabUsername: rawUser.gitlabUsername || "",
+            bitbucketUsername: rawUser.bitbucketUsername || "",
             accessToken: "",
             authCode: "",
             provider: "email",
-            hasInstallations: response.data.hasInstallations || false
+            hasInstallations: rawUser.hasInstallations || false
           };
           if (userData.email || userData.username || userData.githubUsername) {
             setUser(userData);
@@ -99,8 +109,9 @@ const SignInContent = () => {
       setAuthError(null);
       setIsAuthenticating(true);
       const response = await loginWithGitHubRef.current({ authToken: code });
-      if (response?.data?.user) {
-        const user = response.data.user;
+      const rawUser = resolveUser(response?.data) as any;
+      if (rawUser) {
+        const user = rawUser;
         const userData = {
           id: user.id,
           email: user.email || user.githubEmail || "",
@@ -265,7 +276,7 @@ const SignInContent = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-aeonik-light">Forgot password?</span>
-              <Link href="/auth/signup" className="font-semibold text-black hover:underline">Recover access</Link>
+              <Link href="/auth/forgot-password" className="font-semibold text-black hover:underline">Recover access</Link>
             </div>
           </div>
 

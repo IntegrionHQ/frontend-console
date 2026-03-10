@@ -20,11 +20,11 @@ const DashboardPage = () => {
   const { installGitHubApp } = useAuth()
   
   // Redirect to sign-in if no valid user context
-  React.useEffect(() => {
-    if (!user?.email && !user?.username && !user?.githubUsername) {
-      router.push('/auth/signin')
-    }
-  }, [user, router])
+  // React.useEffect(() => {
+  //   if (!user?.email && !user?.username && !user?.githubUsername) {
+  //     router.push('/auth/signin')
+  //   }
+  // }, [user, router])
 
   const handleGitHubInstall = async (installationId: string) => {
     setInstallingGitHub(true)

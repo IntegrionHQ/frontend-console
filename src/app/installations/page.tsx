@@ -1,13 +1,19 @@
 "use client";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { RiGithubFill } from "@remixicon/react";
 import { useRouter } from "next/navigation";
 import { Loader } from "lucide-react";
-import crypto from "crypto";
+import { useAuth } from "@/hooks";
+const generateState = () => {
+  const cryptoObj = typeof globalThis !== "undefined" ? (globalThis.crypto as Crypto | undefined) : undefined;
+  return cryptoObj?.randomUUID
+    ? cryptoObj.randomUUID()
+    : `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+};
 import { useUser } from "../store/global/context/userContext";
 const InstallationsContent= () => {
-  const state = crypto.randomBytes(16).toString("hex");
+  const state = useMemo(() => generateState(), []);
   const params = useSearchParams();
   const provider = params.get("provider");
   const installationId = params.get("installation_id");
@@ -17,7 +23,7 @@ const InstallationsContent= () => {
   const [debugInfo, setDebugInfo] = useState<string>("");
   const GITHUB_APP_INSTALL_URL = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALL_URL;
 
-  const backend_uri = process.env.NEXT_PUBLIC_BACKEND_URI;
+  const { installGitHubApp } = useAuth();
 
   const router = useRouter();
   useEffect(() => {
@@ -38,19 +44,8 @@ const InstallationsContent= () => {
       if (!installationId) return;
       setIsAuthenticating(true);
       try {
-        const response = await fetch(
-          `${backend_uri}/api/v1/auth/github/install`,
-          {
-            credentials: "include",
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ installationId }),
-          }
-        );
-
-        if (!response.ok) throw new Error(await response.text());
+        const response = await installGitHubApp({ installationId });
+        if (!response) throw new Error("Installation failed.");
         console.log("Installation ID sent successfully");
         setUser({ ...user, hasInstallations: true });
         console.log(installationId);
@@ -61,7 +56,7 @@ const InstallationsContent= () => {
         setIsAuthenticating(false);
       }
     },
-    [router]
+    [router, installGitHubApp, user, setUser]
   );
 
   useEffect(() => {
@@ -86,7 +81,7 @@ const InstallationsContent= () => {
       setDebugInfo("Starting authentication process...");
       processGithubInstallation(installationId, providerHint || null);
     }
-  }, [provider, installationId]);
+  }, [provider, installationId, isAuthenticating, processGithubInstallation]);
 
   const handleGithubInstallation = () => {
     const githubInstallationUrl = `${GITHUB_APP_INSTALL_URL}?state=${state}`;

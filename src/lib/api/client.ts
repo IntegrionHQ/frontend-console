@@ -1,7 +1,7 @@
 import type { ApiResponse } from './types';
 
-// Use Next.js API proxy only when explicitly enabled
-const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY === 'true';
+// Use Next.js API proxy by default unless explicitly disabled
+const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
 const API_BASE_URL = USE_PROXY ? '' : (process.env.NEXT_PUBLIC_BACKEND_URI || 'https://backend-lvlw.onrender.com');
 const API_PREFIX = USE_PROXY ? '/api/proxy' : '/api/v1';
 
@@ -49,14 +49,28 @@ async function request<T>(
   let data: ApiResponse<T>;
 
   try {
-    data = text
-      ? JSON.parse(text)
-      : {
-          code: response.status,
-          message: response.statusText,
-          data: null,
-          error: null,
-        };
+    const parsed = text ? JSON.parse(text) : null;
+    const isApiResponse =
+      parsed &&
+      typeof parsed === 'object' &&
+      ('data' in parsed || 'code' in parsed || 'message' in parsed || 'error' in parsed);
+
+    if (isApiResponse) {
+      const parsedAny = parsed as Partial<ApiResponse<T>> & { data?: T };
+      data = {
+        code: typeof parsedAny.code === 'number' ? parsedAny.code : response.status,
+        message: parsedAny.message || response.statusText,
+        data: parsedAny.data ?? (parsed as T),
+        error: parsedAny.error ?? null,
+      };
+    } else {
+      data = {
+        code: response.status,
+        message: response.statusText,
+        data: parsed as T | null,
+        error: null,
+      };
+    }
   } catch (e) {
     console.error('[API Client] Failed to parse JSON:', e, 'Raw response:', text);
     data = {

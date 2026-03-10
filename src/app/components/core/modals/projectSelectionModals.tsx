@@ -34,11 +34,11 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const [projectBranch, setProjectBranch] = useState("main")
  const router = useRouter();
  
-  useEffect(()=>{
-    if(!user.hasInstallations){
-      router.replace("installations")
+  useEffect(() => {
+    if (user?.id && !user.hasInstallations) {
+      router.replace("/installations");
     }
-  },[])
+  }, [user?.id, user?.hasInstallations, router])
   const loadRepos = useCallback(async () => {
     if (!user?.id) {
       setError('Please sign in to load your repositories.')
@@ -77,7 +77,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
 
   useEffect(() => {
     loadRepos()
-  }, [])
+  }, [loadRepos])
 
   // When a repo is selected, prefill name/url/branch
   const onSelectRepo = (repoName: string) => {
