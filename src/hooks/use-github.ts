@@ -10,12 +10,31 @@ export function useGitHub() {
   const [error, setError] = useState<string | null>(null);
 
   const getRepositories = async (): Promise<GitHubRepository[][] | null> => {
-    setLoading(true);
     setError(null);
+    const now = Date.now();
 
+    if (reposCache && now - reposCacheAt < REPO_CACHE_TTL_MS) {
+      return reposCache;
+    }
+
+    setLoading(true);
     try {
-      const response = await githubService.getRepositories();
-      return response.data;
+      if (reposInFlight) {
+        return await reposInFlight;
+      }
+
+      reposInFlight = (async () => {
+        try {
+          const response = await githubService.getRepositories();
+          reposCache = response.data || [];
+          reposCacheAt = Date.now();
+          return reposCache;
+        } finally {
+          reposInFlight = null;
+        }
+      })();
+
+      return await reposInFlight;
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -78,3 +97,8 @@ export function useGitHub() {
   };
 }
 
+// Cache to avoid repeated repo fetches in dev/strict mode or rapid UI opens.
+const REPO_CACHE_TTL_MS = 60_000;
+let reposCache: GitHubRepository[][] | null = null;
+let reposCacheAt = 0;
+let reposInFlight: Promise<GitHubRepository[][] | null> | null = null;

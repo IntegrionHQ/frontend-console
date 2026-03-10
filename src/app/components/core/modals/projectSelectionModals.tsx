@@ -24,11 +24,12 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const { user } = useUser()
   const { getRepositories, loading: githubLoading, error: githubError } = useGitHub()
   const [repos, setRepos] = useState<Repo[] | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const PAGE_SIZE = 15
+  const PAGE_SIZE = 5
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState<string>('')
+  const [isRepoOpen, setIsRepoOpen] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
@@ -57,7 +58,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
       if (reposData) {
         const flatRepos = reposData.flat()
         setRepos(flatRepos)
-        setCurrentPage(1)
+        setVisibleCount(PAGE_SIZE)
       } else {
         setRepos([])
       }
@@ -89,21 +90,26 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     const url = repo.html_url || (repo.full_name ? `https://github.com/${repo.full_name}` : '')
     setProjectUrl(url)
     setProjectBranch(repo.default_branch || 'main')
+    setIsRepoOpen(false)
   }
 
   const canSubmit = useMemo(() => {
     return !!(projectName && projectUrl && projectBranch && user?.id)
   }, [projectName, projectUrl, projectBranch, user?.id])
 
-  const paginatedRepos = useMemo(() => {
+  const visibleRepos = useMemo(() => {
     if (!repos) return []
-    const start = (currentPage - 1) * PAGE_SIZE
-    return repos.slice(start, start + PAGE_SIZE)
-  }, [repos, currentPage])
+    return repos.slice(0, visibleCount)
+  }, [repos, visibleCount])
 
-  const totalPages = useMemo(() => {
-    return repos ? Math.max(1, Math.ceil(repos.length / PAGE_SIZE)) : 1
-  }, [repos])
+  const onRepoListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (!repos) return
+    const target = e.currentTarget
+    const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 16
+    if (nearBottom && visibleCount < repos.length) {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, repos.length))
+    }
+  }, [repos, visibleCount])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,23 +186,42 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                     </div>
                   ) : (
                     <div className="relative">
-                      <select
-                        className="w-full border border-gray-200 rounded-md px-3 py-2.5 pr-8 text-sm disabled:bg-gray-50"
-                        onChange={(e) => onSelectRepo(e.target.value)}
-                        value={selectedRepo || ''}
-                        disabled={!repos}
+                      <button
+                        type="button"
+                        className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm text-left disabled:bg-gray-50"
+                        onClick={() => setIsRepoOpen((prev) => !prev)}
+                        disabled={!repos || repos.length === 0}
+                        aria-haspopup="listbox"
+                        aria-expanded={isRepoOpen}
                       >
-                        {repos && repos.length === 0 ? (
-                          <option value="" disabled>No repositories found</option>
-                        ) : (
-                          <>
-                            <option value="" disabled>Select from your GitHub repositories</option>
-                            {paginatedRepos.map((r) => (
-                              <option key={r.name} value={r.name}>{r.name}</option>
-                            ))}
-                          </>
-                        )}
-                      </select>
+                        {selectedRepo || 'Select from your GitHub repositories'}
+                      </button>
+                      {isRepoOpen && (
+                        <div
+                          className="absolute z-10 mt-2 w-full max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                          role="listbox"
+                          onScroll={onRepoListScroll}
+                        >
+                          {visibleRepos.map((r) => (
+                            <button
+                              key={r.name}
+                              type="button"
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${selectedRepo === r.name ? 'bg-gray-100' : ''}`}
+                              onClick={() => onSelectRepo(r.name)}
+                              role="option"
+                              aria-selected={selectedRepo === r.name}
+                            >
+                              {r.name}
+                            </button>
+                          ))}
+                          {repos && visibleCount < repos.length && (
+                            <div className="px-3 py-2 text-xs text-gray-500">Loading more...</div>
+                          )}
+                        </div>
+                      )}
+                      {repos && repos.length === 0 && (
+                        <div className="mt-2 text-xs text-gray-500">No repositories found</div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -248,25 +273,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                   {repos ? (
                     <div className="flex items-center gap-3">
                       <span>{repos.length} repos</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          className="px-2 py-1 rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
-                        >
-                          Prev
-                        </button>
-                        <span>Page {currentPage} of {totalPages}</span>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                          className="px-2 py-1 rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
-                        >
-                          Next
-                        </button>
-                      </div>
+                      <span>Showing {Math.min(visibleCount, repos.length)}</span>
                     </div>
                   ) : null}
                 </div>
