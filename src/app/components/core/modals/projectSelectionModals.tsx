@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser } from '@/app/store/global/context/userContext'
-import { Loader2, RotateCcw } from 'lucide-react'
+import { Loader2, RotateCcw, X } from 'lucide-react'
 import { useGitHub } from '@/hooks'
 import { projectService } from '@/lib/api'
 import { ApiError } from '@/lib/api'
@@ -24,47 +24,48 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const { user } = useUser()
   const { getRepositories, loading: githubLoading, error: githubError } = useGitHub()
   const [repos, setRepos] = useState<Repo[] | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 15
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedRepo, setSelectedRepo] = useState<string>("")
+  const [selectedRepo, setSelectedRepo] = useState<string>('')
 
-  const [projectName, setProjectName] = useState("")
-  const [projectDescription, setProjectDescription] = useState("")
-  const [projectUrl, setProjectUrl] = useState("")
-  const [projectBranch, setProjectBranch] = useState("main")
- const router = useRouter();
- 
+  const [projectName, setProjectName] = useState('')
+  const [projectDescription, setProjectDescription] = useState('')
+  const [projectUrl, setProjectUrl] = useState('')
+  const [projectBranch, setProjectBranch] = useState('main')
+  const router = useRouter()
+
   useEffect(() => {
     if (user?.id && !user.hasInstallations) {
-      router.replace("/installations");
+      router.replace('/installations')
     }
   }, [user?.id, user?.hasInstallations, router])
+
   const loadRepos = useCallback(async () => {
     if (!user?.id) {
       setError('Please sign in to load your repositories.')
       setRepos([])
       return
     }
-    
+
     setError(null)
-    
+
     try {
       const reposData = await getRepositories()
-      
+
       if (reposData) {
-        // Flatten the array of arrays into a single array
         const flatRepos = reposData.flat()
         setRepos(flatRepos)
+        setCurrentPage(1)
       } else {
         setRepos([])
       }
     } catch (e: unknown) {
       const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Failed to load repositories')
-      
-      // Check if error is due to missing GitHub installation
+
       if (msg.includes('no GitHub installation') || msg.includes('GitHub installation') || e instanceof ApiError && e.code === 400) {
         setError('GitHub App not installed. Please install the app to access your repositories.')
-        // Notify parent to show installation modal
         if (onGitHubInstallRequired) {
           onGitHubInstallRequired()
         }
@@ -76,16 +77,16 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   }, [user?.id, getRepositories, onGitHubInstallRequired])
 
   useEffect(() => {
+    // Fetch once on open; no polling to reduce network traffic.
     loadRepos()
   }, [loadRepos])
 
-  // When a repo is selected, prefill name/url/branch
   const onSelectRepo = (repoName: string) => {
     const repo = repos?.find(r => r.name === repoName)
     if (!repo) return
     setSelectedRepo(repoName)
     setProjectName(repo.name)
-    const url = repo.html_url || (repo.full_name ? `https://github.com/${repo.full_name}` : "")
+    const url = repo.html_url || (repo.full_name ? `https://github.com/${repo.full_name}` : '')
     setProjectUrl(url)
     setProjectBranch(repo.default_branch || 'main')
   }
@@ -94,26 +95,35 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     return !!(projectName && projectUrl && projectBranch && user?.id)
   }, [projectName, projectUrl, projectBranch, user?.id])
 
+  const paginatedRepos = useMemo(() => {
+    if (!repos) return []
+    const start = (currentPage - 1) * PAGE_SIZE
+    return repos.slice(start, start + PAGE_SIZE)
+  }, [repos, currentPage])
+
+  const totalPages = useMemo(() => {
+    return repos ? Math.max(1, Math.ceil(repos.length / PAGE_SIZE)) : 1
+  }, [repos])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user?.id) return
     if (!canSubmit) return
     setSubmitting(true)
     setError(null)
-    
+
     try {
-      // Extract repo name from URL if needed
-      const repoUrl = projectUrl.includes('github.com') 
+      const repoUrl = projectUrl.includes('github.com')
         ? projectUrl.split('github.com/')[1]?.replace('.git', '') || projectUrl
         : projectUrl
-      
+
       await projectService.create({
         projectName,
         projectDescription,
         projectUrl: repoUrl,
         projectBranch,
       })
-      
+
       onClose()
       onCreated?.()
     } catch (e: unknown) {
@@ -125,54 +135,63 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   }
 
   return (
-    <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
-      <div className='bg-white rounded-md shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col'>
-        <div className='flex items-center justify-between py-3 px-4 border-b'>
-          <div className='flex flex-col'>
-            <h2 className='font-medium text-[18px]'>Start New Project</h2>
-            <p className='text-xs text-gray-500'>Select your GitHub repo, name it, and choose a branch</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-md shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between py-5 px-6 border-b border-gray-200">
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold text-black">Start New Project</h2>
+            <p className="text-xs text-gray-500 font-aeonik-light">Select your GitHub repo, name it, and choose a branch</p>
           </div>
-          <button onClick={onClose} className='text-gray-500 hover:text-gray-800 text-lg' aria-label='Close'>×</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-black" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <div className='p-4 overflow-auto'>
+
+        <div className="p-6 overflow-auto">
           {(error || githubError) ? (
-            <div className='text-sm text-red-600 mb-4'>{error || githubError}</div>
+            <div className="text-sm text-red-600 mb-4">{error || githubError}</div>
           ) : null}
+
           {!error && !githubError && (
-            <form onSubmit={handleSubmit} className='space-y-4'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className='text-sm mb-1 flex items-center gap-2'>
+                  <label className="text-sm mb-1 flex items-center gap-2 text-black">
                     Repository
                     <button
-                      type='button'
+                      type="button"
                       onClick={loadRepos}
                       disabled={githubLoading}
-                      className='text-xs text-gray-500 hover:text-black disabled:opacity-50 flex items-center gap-1'
-                      aria-label='Reload repositories'
+                      className="text-xs text-gray-500 hover:text-black disabled:opacity-50 flex items-center gap-1"
+                      aria-label="Reload repositories"
                     >
-                      <RotateCcw className='h-3.5 w-3.5' /> Reload
+                      <RotateCcw className="h-3.5 w-3.5" /> Reload
                     </button>
                   </label>
                   {githubLoading ? (
-                    <div className='w-full flex items-center gap-2 p-2 border rounded text-sm text-gray-600'>
-                      <Loader2 className='h-4 w-4 animate-spin' />
-                      Loading repositories...
+                    <div className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Fetching repositories...
+                      </div>
+                      <div className="mt-2 h-1.5 w-full bg-gray-100 rounded">
+                        <div className="h-1.5 w-1/3 bg-gray-300 rounded animate-pulse" />
+                      </div>
                     </div>
                   ) : (
-                    <div className='relative'>
+                    <div className="relative">
                       <select
-                        className={'w-full border rounded px-2 py-2 pr-8 text-sm disabled:bg-gray-50'}
+                        className="w-full border border-gray-200 rounded-md px-3 py-2.5 pr-8 text-sm disabled:bg-gray-50"
                         onChange={(e) => onSelectRepo(e.target.value)}
                         value={selectedRepo || ''}
                         disabled={!repos}
                       >
                         {repos && repos.length === 0 ? (
-                          <option value='' disabled>No repositories found</option>
+                          <option value="" disabled>No repositories found</option>
                         ) : (
                           <>
-                            <option value='' disabled>Select from your GitHub repositories</option>
-                            {(repos || []).map((r) => (
+                            <option value="" disabled>Select from your GitHub repositories</option>
+                            {paginatedRepos.map((r) => (
                               <option key={r.name} value={r.name}>{r.name}</option>
                             ))}
                           </>
@@ -182,51 +201,80 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                   )}
                 </div>
                 <div>
-                  <label className='block text-sm mb-1'>Project Name</label>
+                  <label className="block text-sm mb-1 text-black">Project Name</label>
                   <input
-                    className='w-full border rounded px-2 py-2 text-sm disabled:bg-gray-50'
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm disabled:bg-gray-50"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     disabled={!selectedRepo}
-                    placeholder='My Project'
+                    placeholder="My Project"
                   />
                 </div>
-                <div className='md:col-span-2'>
-                  <label className='block text-sm mb-1'>Description</label>
+                <div className="md:col-span-2">
+                  <label className="block text-sm mb-1 text-black">Description</label>
                   <textarea
-                    className='w-full border rounded px-2 py-2 text-sm disabled:bg-gray-50'
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm disabled:bg-gray-50"
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     disabled={!selectedRepo}
-                    placeholder='What is this project about?'
+                    placeholder="What is this project about?"
+                    rows={4}
                   />
                 </div>
                 <div>
-                  <label className='block text-sm mb-1'>Repository URL</label>
+                  <label className="block text-sm mb-1 text-black">Repository URL</label>
                   <input
-                    className='w-full border rounded px-2 py-2 text-sm bg-gray-50'
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm bg-gray-50"
                     value={projectUrl}
                     readOnly
-                    placeholder='https://github.com/owner/repo'
+                    placeholder="https://github.com/owner/repo"
                     aria-readonly="true"
                   />
                 </div>
                 <div>
-                  <label className='block text-sm mb-1'>Branch</label>
+                  <label className="block text-sm mb-1 text-black">Branch</label>
                   <input
-                    className='w-full border rounded px-2 py-2 text-sm disabled:bg-gray-50'
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm disabled:bg-gray-50"
                     value={projectBranch}
                     onChange={(e) => setProjectBranch(e.target.value)}
                     disabled={!selectedRepo}
-                    placeholder='main'
+                    placeholder="main"
                   />
                 </div>
               </div>
 
-              <div className='flex justify-end gap-2 pt-2'>
-                <button type='button' onClick={onClose} className='px-4 py-2 text-sm rounded border'>Cancel</button>
-                <button type='submit' disabled={!canSubmit || submitting || githubLoading || !selectedRepo} className='px-4 py-2 text-sm rounded bg-black text-white disabled:opacity-50 hover:bg-neutral-800'>
-                  {submitting ? 'Creating…' : 'Create Project'}
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <div className="text-xs text-gray-500">
+                  {repos ? (
+                    <div className="flex items-center gap-3">
+                      <span>{repos.length} repos</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-2 py-1 rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <span>Page {currentPage} of {totalPages}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-2 py-1 rounded-md border border-gray-200 text-gray-700 disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm rounded-md border border-gray-200 text-black hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={!canSubmit || submitting || githubLoading || !selectedRepo} className="px-4 py-2.5 text-sm rounded-md bg-black text-white disabled:opacity-50 hover:bg-neutral-800">
+                  {submitting ? 'Creating...' : 'Create Project'}
                 </button>
               </div>
             </form>
