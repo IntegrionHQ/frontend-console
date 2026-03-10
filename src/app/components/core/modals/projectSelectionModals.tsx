@@ -32,6 +32,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const [isRepoOpen, setIsRepoOpen] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const repoButtonRef = useRef<HTMLButtonElement | null>(null)
+  const repoMenuRef = useRef<HTMLDivElement | null>(null)
   const [repoMenuPos, setRepoMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   const [projectName, setProjectName] = useState('')
@@ -108,7 +109,9 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     if (!isRepoOpen) return
     const onClickOutside = (event: MouseEvent) => {
       const target = event.target as Node
-      if (repoButtonRef.current && !repoButtonRef.current.contains(target)) {
+      const buttonContains = repoButtonRef.current?.contains(target) ?? false
+      const menuContains = repoMenuRef.current?.contains(target) ?? false
+      if (!buttonContains && !menuContains) {
         setIsRepoOpen(false)
       }
     }
@@ -226,6 +229,8 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                           style={{ top: repoMenuPos.top, left: repoMenuPos.left, width: repoMenuPos.width }}
                           role="listbox"
                           onScroll={onRepoListScroll}
+                          ref={repoMenuRef}
+                          onMouseDown={(e) => e.stopPropagation()}
                         >
                           {visibleRepos.map((r) => (
                             <button
