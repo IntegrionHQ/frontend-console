@@ -1,5 +1,6 @@
 "use client"
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useUser } from '@/app/store/global/context/userContext'
 import { Loader2, RotateCcw, X } from 'lucide-react'
 import { useGitHub } from '@/hooks'
@@ -30,6 +31,8 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
   const [selectedRepo, setSelectedRepo] = useState<string>('')
   const [isRepoOpen, setIsRepoOpen] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const repoButtonRef = useRef<HTMLButtonElement | null>(null)
+  const [repoMenuPos, setRepoMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
@@ -92,6 +95,26 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     setProjectBranch(repo.default_branch || 'main')
     setIsRepoOpen(false)
   }
+
+  useEffect(() => {
+    if (!isRepoOpen) return
+    const rect = repoButtonRef.current?.getBoundingClientRect()
+    if (rect) {
+      setRepoMenuPos({ top: rect.bottom + 8, left: rect.left, width: rect.width })
+    }
+  }, [isRepoOpen])
+
+  useEffect(() => {
+    if (!isRepoOpen) return
+    const onClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (repoButtonRef.current && !repoButtonRef.current.contains(target)) {
+        setIsRepoOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', onClickOutside)
+    return () => window.removeEventListener('mousedown', onClickOutside)
+  }, [isRepoOpen])
 
   const canSubmit = useMemo(() => {
     return !!(projectName && projectUrl && projectBranch && user?.id)
@@ -193,12 +216,14 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                         disabled={!repos || repos.length === 0}
                         aria-haspopup="listbox"
                         aria-expanded={isRepoOpen}
+                        ref={repoButtonRef}
                       >
                         {selectedRepo || 'Select from your GitHub repositories'}
                       </button>
-                      {isRepoOpen && (
+                      {isRepoOpen && repoMenuPos && typeof document !== 'undefined' && createPortal(
                         <div
-                          className="absolute z-10 mt-2 w-full max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                          className="fixed z-[100] max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                          style={{ top: repoMenuPos.top, left: repoMenuPos.left, width: repoMenuPos.width }}
                           role="listbox"
                           onScroll={onRepoListScroll}
                         >
@@ -217,7 +242,8 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                           {repos && visibleCount < repos.length && (
                             <div className="px-3 py-2 text-xs text-gray-500">Loading more...</div>
                           )}
-                        </div>
+                        </div>,
+                        document.body
                       )}
                       {repos && repos.length === 0 && (
                         <div className="mt-2 text-xs text-gray-500">No repositories found</div>
@@ -269,14 +295,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
               </div>
 
               <div className="flex items-center justify-between gap-3 pt-2">
-                <div className="text-xs text-gray-500">
-                  {repos ? (
-                    <div className="flex items-center gap-3">
-                      <span>{repos.length} repos</span>
-                      <span>Showing {Math.min(visibleCount, repos.length)}</span>
-                    </div>
-                  ) : null}
-                </div>
+                <div />
                 <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm rounded-md border border-gray-200 text-black hover:bg-gray-50">
                   Cancel
                 </button>
