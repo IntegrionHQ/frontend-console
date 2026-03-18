@@ -47,7 +47,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     }
   }, [user?.id, user?.hasInstallations, router])
 
-  const loadRepos = useCallback(async () => {
+  const loadRepos = useCallback(async (force = false) => {
     if (!user?.id) {
       setError('Please sign in to load your repositories.')
       setRepos([])
@@ -57,10 +57,11 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     setError(null)
 
     try {
-      const reposData = await getRepositories()
+      const reposData = await getRepositories(force)
 
       if (reposData) {
         const flatRepos = reposData.flat()
+        // Only update if data changed (simple check for length/first item as a hint)
         setRepos(flatRepos)
         setVisibleCount(PAGE_SIZE)
       } else {
@@ -69,7 +70,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     } catch (e: unknown) {
       const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Failed to load repositories')
 
-      if (msg.includes('no GitHub installation') || msg.includes('GitHub installation') || e instanceof ApiError && e.code === 400) {
+      if (msg.includes('no GitHub installation') || msg.includes('GitHub installation') || (e instanceof ApiError && e.code === 400)) {
         setError('GitHub App not installed. Please install the app to access your repositories.')
         if (onGitHubInstallRequired) {
           onGitHubInstallRequired()
@@ -86,10 +87,10 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
     loadRepos()
   }, [loadRepos])
 
-  const onSelectRepo = (repoName: string) => {
-    const repo = repos?.find(r => r.name === repoName)
+  const onSelectRepo = (repoFullName: string) => {
+    const repo = repos?.find(r => r.full_name === repoFullName)
     if (!repo) return
-    setSelectedRepo(repoName)
+    setSelectedRepo(repo.name)
     setProjectName(repo.name)
     const url = repo.html_url || (repo.full_name ? `https://github.com/${repo.full_name}` : '')
     setProjectUrl(url)
@@ -192,7 +193,7 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                     Repository
                     <button
                       type="button"
-                      onClick={loadRepos}
+                      onClick={() => loadRepos(true)}
                       disabled={githubLoading}
                       className="text-xs text-gray-500 hover:text-black disabled:opacity-50 flex items-center gap-1"
                       aria-label="Reload repositories"
@@ -234,10 +235,10 @@ const ProjectSelectionModals: React.FC<ProjectSelectionModalProps> = ({ onClose,
                         >
                           {visibleRepos.map((r) => (
                             <button
-                              key={r.name}
+                              key={r.full_name}
                               type="button"
-                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${selectedRepo === r.name ? 'bg-gray-100' : ''}`}
-                              onClick={() => onSelectRepo(r.name)}
+                              className={`w-full text-left px-3 py-2 text-sm text-black hover:bg-gray-50 ${selectedRepo === r.name ? 'bg-gray-100' : ''}`}
+                              onClick={() => r.full_name && onSelectRepo(r.full_name)}
                               role="option"
                               aria-selected={selectedRepo === r.name}
                             >

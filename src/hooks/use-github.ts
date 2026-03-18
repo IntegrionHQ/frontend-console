@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { githubService } from '@/lib/api';
 import type { GitHubRepository, GitHubBranch } from '@/lib/api/types';
 import { ApiError } from '@/lib/api';
@@ -9,32 +9,34 @@ export function useGitHub() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getRepositories = async (): Promise<GitHubRepository[][] | null> => {
+  const getRepositories = useCallback(async (force = false): Promise<GitHubRepository[][] | null> => {
     setError(null);
     const now = Date.now();
 
-    if (reposCache && now - reposCacheAt < REPO_CACHE_TTL_MS) {
+    if (!force && reposCache && now - reposCacheAt < REPO_CACHE_TTL_MS) {
       return reposCache;
     }
 
     setLoading(true);
     try {
-      if (reposInFlight) {
+      if (!force && reposInFlight) {
         return await reposInFlight;
       }
 
-      reposInFlight = (async () => {
+      const fetchPromise = (async () => {
         try {
           const response = await githubService.getRepositories();
-          reposCache = response.data || [];
+          const data = response.data || [];
+          reposCache = data;
           reposCacheAt = Date.now();
-          return reposCache;
+          return data;
         } finally {
-          reposInFlight = null;
+          if (!force) reposInFlight = null;
         }
       })();
 
-      return await reposInFlight;
+      if (!force) reposInFlight = fetchPromise;
+      return await fetchPromise;
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -45,9 +47,9 @@ export function useGitHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getBranches = async (url: string): Promise<GitHubBranch[] | null> => {
+  const getBranches = useCallback(async (url: string): Promise<GitHubBranch[] | null> => {
     setLoading(true);
     setError(null);
 
@@ -64,9 +66,9 @@ export function useGitHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getRepositoryContent = async (
+  const getRepositoryContent = useCallback(async (
     accessToken: string,
     username: string,
     repo: string
@@ -86,7 +88,7 @@ export function useGitHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     loading,
