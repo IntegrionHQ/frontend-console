@@ -1,7 +1,7 @@
 "use client"
 import React, { useState } from 'react'
 import Image from 'next/image'
-import { GitBranch, Plus, Sparkles, Github, ExternalLink, CheckCircle } from 'lucide-react'
+import { GitBranch, Plus, Sparkles, Github, ExternalLink, CheckCircle, Activity } from 'lucide-react'
 import { useUser } from '@/app/store/global/context/userContext'
 import { useRouter } from 'next/navigation'
 import ProjectSelectionModals from '@/app/components/core/modals/projectSelectionModals'
@@ -68,20 +68,38 @@ const DashboardPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {projects.map((project) => (
-            <div key={project.id} className="bg-white border border-gray-200 p-6 rounded-md hover:shadow-[6px_8px_0px_0px_rgba(0,0,0,0.06)] transition-all hover:border-black/70 group">
+            <div 
+              key={project.id} 
+              className="bg-white border border-gray-200 p-6 rounded-md hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,0.03)] transition-all hover:border-black group cursor-pointer relative overflow-hidden"
+              onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="bg-gray-50 p-2 rounded-md">
+                   <div className="size-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                </div>
+                <Github className="size-4 text-gray-300 group-hover:text-black transition-colors" />
+              </div>
+              
               <div className="hemming font-semibold text-lg text-black group-hover:text-black/80">{project.projectName}</div>
               {project.projectDescription && (
-                <div className="text-sm text-gray-500 font-aeonik-light mt-2">{project.projectDescription}</div>
+                <div className="text-sm text-gray-500 font-aeonik-light mt-1 line-clamp-2">{project.projectDescription}</div>
               )}
-              {project.projectUrl && (
-                <a className="text-sm text-black font-semibold hover:underline mt-4 inline-block" href={project.projectUrl} target="_blank" rel="noreferrer">View repository ?</a>
-              )}
-              {project.projectBranch && (
-                <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-100 flex items-center gap-1.5">
-                  <GitBranch className="size-3.5" />
-                  {project.projectBranch}
+              
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-50">
+                {project.projectBranch && (
+                  <div className="text-[10px] text-gray-400 font-bold flex items-center gap-1 bg-gray-50 px-2 py-1 rounded lowercase">
+                    <GitBranch className="size-3" />
+                    {project.projectBranch}
+                  </div>
+                )}
+                <div className="text-[10px] text-gray-400 font-bold flex items-center gap-1 bg-gray-50 px-2 py-1 rounded uppercase tracking-tighter">
+                  <Activity className="size-3" />
+                  Synced
                 </div>
-              )}
+              </div>
+
+               {/* Hover Effect Line */}
+               <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-black group-hover:w-full transition-all duration-300" />
             </div>
           ))}
         </div>

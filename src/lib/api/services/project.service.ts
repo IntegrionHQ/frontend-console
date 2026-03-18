@@ -29,5 +29,9 @@ export const projectService = {
   getByUserId: async (): Promise<ApiResponse<Project[]>> => {
     return api.get<Project[]>(`/projects`);
   },
+  
+  initiateTest: async (data: { accessToken: string; repo: string; branch: string }): Promise<ApiResponse<any>> => {
+    return api.post<any>('/tests', data);
+  },
 };
 
